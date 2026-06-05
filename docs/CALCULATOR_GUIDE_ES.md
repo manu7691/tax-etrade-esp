@@ -99,7 +99,8 @@ tax-etrade/
 │   │   └── rsu_release_2.pdf
 │   ├── options/
 │   │   └── option_exercise_1.pdf
-│   └── prior_losses.json   # opcional: pérdidas pendientes de antes de tu ventana de datos
+│   ├── prior_losses.json   # opcional: pérdidas pendientes de antes de tu ventana de datos
+│   └── savings_income.json # opcional: dividendos/intereses por año (EUR)
 ```
 
 ### Paso 3: Ejecutar el Programa

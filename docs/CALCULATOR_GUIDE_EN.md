@@ -99,7 +99,8 @@ tax-etrade/
 │   │   └── rsu_release_2.pdf
 │   ├── options/
 │   │   └── option_exercise_1.pdf
-│   └── prior_losses.json   # optional: pending losses from before your data window
+│   ├── prior_losses.json   # optional: pending losses from before your data window
+│   └── savings_income.json # optional: dividends/interest per year (EUR)
 ```
 
 ### Step 3: Run the Script

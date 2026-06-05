@@ -17,6 +17,7 @@ import pandas as pd
 
 from tax_engine import (
     EventType,
+    SavingsIncomeYear,
     StockEvent,
     TaxEngine,
     load_rsu_events,
@@ -50,6 +51,44 @@ def load_prior_losses(path: Path) -> dict[int, Decimal]:
             print(f"Warning: skipping invalid prior-loss entry {year_str!r}: {amount!r}")
     if result:
         print(f"Loaded prior-year pending losses for {len(result)} year(s) from {path}.")
+    return result
+
+
+def load_savings_income(path: Path) -> dict[int, SavingsIncomeYear]:
+    """
+    Load dividend/interest (RCM) income per year, in EUR.
+
+    Expects a JSON object keyed by year, e.g.::
+
+        {"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}
+
+    All keys are optional and default to 0. Returns an empty dict if the file
+    does not exist or cannot be parsed.
+    """
+    if not path.exists():
+        return {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Warning: could not read savings-income file {path}: {e}")
+        return {}
+
+    result: dict[int, SavingsIncomeYear] = {}
+    for year_str, vals in raw.items():
+        try:
+            year = int(year_str)
+            entry = vals if isinstance(vals, dict) else {}
+            result[year] = SavingsIncomeYear(
+                year=year,
+                dividends_eur=Decimal(str(entry.get("dividends_eur", 0))),
+                interest_eur=Decimal(str(entry.get("interest_eur", 0))),
+                foreign_tax_eur=Decimal(str(entry.get("foreign_tax_eur", 0))),
+            )
+        except (ValueError, InvalidOperation):
+            print(f"Warning: skipping invalid savings-income entry {year_str!r}: {vals!r}")
+    if result:
+        print(f"Loaded dividend/interest income for {len(result)} year(s) from {path}.")
     return result
 
 
@@ -489,11 +528,21 @@ def main() -> None:
         help="JSON file of pending losses from before the data window "
         "({\"2019\": 1500, ...}). Defaults to <input-dir>/prior_losses.json if present.",
     )
+    parser.add_argument(
+        "--savings-income",
+        type=Path,
+        default=None,
+        help="JSON file of dividend/interest income per year in EUR "
+        "({\"2024\": {\"dividends_eur\": 320, ...}}). Defaults to "
+        "<input-dir>/savings_income.json if present.",
+    )
     args = parser.parse_args()
     input_dir: Path = args.input_dir
     output_dir: Path = args.output_dir
     prior_losses_path: Path = args.prior_losses or (input_dir / "prior_losses.json")
     opening_losses = load_prior_losses(prior_losses_path)
+    savings_income_path: Path = args.savings_income or (input_dir / "savings_income.json")
+    savings_income = load_savings_income(savings_income_path)
 
     print("Spanish Tax Engine for E-Trade RSUs and ESPP")
     print("Using FIFO Cost Basis (First In, First Out) & Progressive Savings Rate Scale")
@@ -526,7 +575,7 @@ def main() -> None:
 
     # Print results
     engine.print_ledger()
-    engine.print_tax_summary(opening_losses=opening_losses)
+    engine.print_tax_summary(opening_losses=opening_losses, savings_income=savings_income)
 
     # ESPP Analysis: 3-year holding period detection
     espp_discounts = calculate_espp_discounts(input_dir)
@@ -595,11 +644,11 @@ def main() -> None:
     print(f"Generating English PDF report at: {pdf_path_en}...")
     engine.generate_pdf_report(pdf_path_en, lang="en", espp_discounts=espp_discounts,
                                espp_early_sale_discounts=espp_early_sales,
-                               opening_losses=opening_losses)
+                               opening_losses=opening_losses, savings_income=savings_income)
     print(f"Generating Spanish PDF report (for Hacienda) at: {pdf_path_es}...")
     engine.generate_pdf_report(pdf_path_es, lang="es", espp_discounts=espp_discounts,
                                espp_early_sale_discounts=espp_early_sales,
-                               opening_losses=opening_losses)
+                               opening_losses=opening_losses, savings_income=savings_income)
     print("PDF generation complete.")
 
 

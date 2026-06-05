@@ -132,9 +132,10 @@ For each tax year, it lists:
 
 The report also includes:
 - **Loss Carryforward Ledger (Art. 49 LIRPF):** simulates the 4-year offset of net losses against later gains and flags losses that expire unused. Seed pre-window losses via `input/prior_losses.json` (e.g. `{"2019": 1500}`) or `--prior-losses <file>`.
+- **Savings Base with dividends/interest (optional):** provide `input/savings_income.json` (e.g. `{"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}`) or `--savings-income <file>` to add your E\*TRADE dividends and cash interest (*rendimientos del capital mobiliario*). The report then computes the **25% cross-category offset** (a stock loss offsetting dividend/interest income) and shows the combined savings base. Foreign tax withheld is shown for reference; the *deducción por doble imposición* is left to your advisor.
 - **Modelo 100 Filing Guide:** a crosswalk mapping each figure to its Modelo 100 *apartado* (casilla numbers are indicative — verify for your year).
 
-> **CLI options:** `uv run main.py` accepts `--input-dir`, `--output-dir`, and `--prior-losses` (all optional).
+> **CLI options:** `uv run main.py` accepts `--input-dir`, `--output-dir`, `--prior-losses`, and `--savings-income` (all optional).
 
 Copy the net taxable savings base into the capital gains from stock transfers section of your annual IRPF tax return.
 
@@ -271,8 +272,9 @@ Para cada ejercicio fiscal calcula:
 
 El informe incluye además:
 - **Libro de Compensación de Pérdidas (Art. 49 LIRPF):** simula la compensación a 4 años de pérdidas netas con ganancias posteriores y avisa de las que caducan. Inicializa pérdidas previas con `input/prior_losses.json` (p. ej. `{"2019": 1500}`) o `--prior-losses <archivo>`.
+- **Base del Ahorro con dividendos/intereses (opcional):** aporta `input/savings_income.json` (p. ej. `{"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}`) o `--savings-income <archivo>` para incluir tus dividendos e intereses de cuenta de E\*TRADE (*rendimientos del capital mobiliario*). El informe calcula entonces la **compensación cruzada del 25%** (una pérdida bursátil compensando dividendos/intereses) y muestra la base del ahorro combinada. La retención en origen se muestra a título informativo; la *deducción por doble imposición* la aplica tu asesor.
 - **Guía de Cumplimentación del Modelo 100:** asigna cada dato a su *apartado* (las casillas son orientativas — verifícalas para tu ejercicio).
 
-> **Opciones de línea de comandos:** `uv run main.py` admite `--input-dir`, `--output-dir` y `--prior-losses` (todas opcionales).
+> **Opciones de línea de comandos:** `uv run main.py` admite `--input-dir`, `--output-dir`, `--prior-losses` y `--savings-income` (todas opcionales).
 
 Introduce el valor de la "base imponible del ahorro" en el apartado de ganancias y pérdidas derivadas de la transmisión de valores en el borrador de tu declaración de la renta (IRPF).
