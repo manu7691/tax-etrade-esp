@@ -132,8 +132,13 @@ For each tax year, it lists:
 
 The report also includes:
 - **Loss Carryforward Ledger (Art. 49 LIRPF):** simulates the 4-year offset of net losses against later gains and flags losses that expire unused. Seed pre-window losses via `input/prior_losses.json` (e.g. `{"2019": 1500}`) or `--prior-losses <file>`.
-- **Savings Base with dividends/interest (optional):** provide `input/savings_income.json` (e.g. `{"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}`) or `--savings-income <file>` to add your E\*TRADE dividends and cash interest (*rendimientos del capital mobiliario*). The report then computes the **25% cross-category offset** (a stock loss offsetting dividend/interest income) and shows the combined savings base. Foreign tax withheld is shown for reference; the *deducción por doble imposición* is left to your advisor.
-  - These figures are entered **manually** — read the year-end totals off your E\*TRADE tax document (a **Form 1042-S** for non-US residents, or 1099) under *Accounts → Documents → Tax Center*. Either copy the template (`cp docs/savings_income.example.json input/savings_income.json`) and edit it, or use the interactive helper which prompts you and merges into the file: `.venv/bin/python -m tax_engine.cli_savings_income` (or one-shot: `... cli_savings_income --year 2024 --dividends 320 --interest 15 --foreign-tax 48`).
+- **Savings Base with dividends/interest (optional):** provide `input/savings_income.json` (or `--savings-income <file>`) to add your E\*TRADE dividends and cash interest (*rendimientos del capital mobiliario*). The report computes the **25% cross-category offset** (a stock loss offsetting dividend/interest income) and shows the combined savings base. Foreign tax withheld is shown for reference; the *deducción por doble imposición* is left to your advisor.
+  - **Recommended format — USD payments (exact):** a list of payments, each with its date; the engine converts each to EUR at the **ECB rate on that date**, exactly like stock trades:
+    ```json
+    [ { "date": "2024-03-15", "type": "dividend", "amount_usd": 80, "foreign_tax_usd": 12 } ]
+    ```
+    Enter them with the interactive helper (no JSON editing): `.venv/bin/python -m tax_engine.cli_savings_income` — or one-shot: `... cli_savings_income --date 2024-03-15 --type dividend --amount-usd 80 --foreign-tax-usd 12`. A starter template: `cp docs/savings_income.example.json input/savings_income.json`.
+  - **Alternative — EUR per year (manual conversion):** if you only have an annual total (e.g. off a **Form 1042-S** / 1099 in *Accounts → Documents → Tax Center*), you can instead supply pre-converted EUR amounts: `{"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}`. Note this can't apply per-payment exchange rates.
 - **Modelo 100 Filing Guide:** a crosswalk mapping each figure to its Modelo 100 *apartado* (casilla numbers are indicative — verify for your year).
 
 > **CLI options:** `uv run main.py` accepts `--input-dir`, `--output-dir`, `--prior-losses`, and `--savings-income` (all optional).
@@ -273,8 +278,13 @@ Para cada ejercicio fiscal calcula:
 
 El informe incluye además:
 - **Libro de Compensación de Pérdidas (Art. 49 LIRPF):** simula la compensación a 4 años de pérdidas netas con ganancias posteriores y avisa de las que caducan. Inicializa pérdidas previas con `input/prior_losses.json` (p. ej. `{"2019": 1500}`) o `--prior-losses <archivo>`.
-- **Base del Ahorro con dividendos/intereses (opcional):** aporta `input/savings_income.json` (p. ej. `{"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}`) o `--savings-income <archivo>` para incluir tus dividendos e intereses de cuenta de E\*TRADE (*rendimientos del capital mobiliario*). El informe calcula entonces la **compensación cruzada del 25%** (una pérdida bursátil compensando dividendos/intereses) y muestra la base del ahorro combinada. La retención en origen se muestra a título informativo; la *deducción por doble imposición* la aplica tu asesor.
-  - Estos importes se introducen **manualmente** — toma los totales anuales de tu documento fiscal de E\*TRADE (un **Formulario 1042-S** para no residentes en EE. UU., o 1099) en *Accounts → Documents → Tax Center*. Copia la plantilla (`cp docs/savings_income.example.json input/savings_income.json`) y edítala, o usa el asistente interactivo que te pregunta y fusiona en el archivo: `.venv/bin/python -m tax_engine.cli_savings_income` (o directo: `... cli_savings_income --year 2024 --dividends 320 --interest 15 --foreign-tax 48`).
+- **Base del Ahorro con dividendos/intereses (opcional):** aporta `input/savings_income.json` (o `--savings-income <archivo>`) para incluir tus dividendos e intereses de cuenta de E\*TRADE (*rendimientos del capital mobiliario*). El informe calcula la **compensación cruzada del 25%** (una pérdida bursátil compensando dividendos/intereses) y muestra la base del ahorro combinada. La retención en origen se muestra a título informativo; la *deducción por doble imposición* la aplica tu asesor.
+  - **Formato recomendado — pagos en USD (exacto):** una lista de pagos, cada uno con su fecha; el motor convierte cada uno a EUR al **tipo del BCE de esa fecha**, igual que las operaciones de acciones:
+    ```json
+    [ { "date": "2024-03-15", "type": "dividend", "amount_usd": 80, "foreign_tax_usd": 12 } ]
+    ```
+    Introdúcelos con el asistente interactivo (sin editar JSON): `.venv/bin/python -m tax_engine.cli_savings_income` — o directo: `... cli_savings_income --date 2024-03-15 --type dividend --amount-usd 80 --foreign-tax-usd 12`. Plantilla inicial: `cp docs/savings_income.example.json input/savings_income.json`.
+  - **Alternativa — EUR por año (conversión manual):** si solo tienes un total anual (p. ej. de un **Formulario 1042-S** / 1099 en *Accounts → Documents → Tax Center*), puedes aportar importes ya convertidos a EUR: `{"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}`. Ten en cuenta que así no se aplican los tipos de cambio por pago.
 - **Guía de Cumplimentación del Modelo 100:** asigna cada dato a su *apartado* (las casillas son orientativas — verifícalas para tu ejercicio).
 
 > **Opciones de línea de comandos:** `uv run main.py` admite `--input-dir`, `--output-dir`, `--prior-losses` y `--savings-income` (todas opcionales).

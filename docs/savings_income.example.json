@@ -1,12 +1,4 @@
-{
-  "2024": {
-    "dividends_eur": 0,
-    "interest_eur": 1.45,
-    "foreign_tax_eur": 0
-  },
-  "2025": {
-    "dividends_eur": 0,
-    "interest_eur": 0,
-    "foreign_tax_eur": 0
-  }
-}
+[
+  { "date": "2024-03-15", "type": "dividend", "amount_usd": 80.00, "foreign_tax_usd": 12.00 },
+  { "date": "2024-05-29", "type": "interest", "amount_usd": 1.45 }
+]
