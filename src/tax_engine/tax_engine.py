@@ -15,6 +15,9 @@ from .models import (
     EventType,
     FifoMatch,
     ProcessedEvent,
+    SavingsIncomeYear,
+    SavingsLedger,
+    SavingsLedgerYear,
     ShareLot,
     StockEvent,
     TaxEngineState,
@@ -381,6 +384,146 @@ class TaxEngine:
         )
         return ledger
 
+    @staticmethod
+    def _cross_category_cap(year: int) -> Decimal:
+        """
+        Cross-category offset cap for a year (Art. 49 LIRPF transitional regime).
+
+        A negative balance in one savings-base category may offset at most this
+        fraction of the positive balance in the other category.
+        """
+        caps = {2015: "0.10", 2016: "0.15", 2017: "0.20"}
+        if year <= 2015:
+            return Decimal(caps.get(year, "0.10"))
+        return Decimal(caps.get(year, "0.25"))  # 25% from 2018 onward
+
+    def compute_savings_ledger(
+        self,
+        savings_income: dict[int, SavingsIncomeYear],
+        opening_losses: dict[int, Decimal] | None = None,
+        opening_rcm_losses: dict[int, Decimal] | None = None,
+    ) -> SavingsLedger:
+        """
+        Simulate the full savings base across two categories (Art. 48 & 49 LIRPF):
+        capital gains/losses (G/L) and returns on movable capital (RCM = dividends
+        + interest). Each year, prior-year losses offset same-category gains first,
+        then a negative balance offsets up to the cross-category cap (typically 25%)
+        of the other category's positive balance; remaining losses carry forward 4
+        years and expire thereafter.
+
+        ``opening_losses`` / ``opening_rcm_losses`` seed pending losses (positive
+        magnitudes keyed by origin year) from before the data window.
+        """
+        gp_pool: list[list] = [
+            [y, abs(Decimal(str(m)))]
+            for y, m in sorted((opening_losses or {}).items())
+            if abs(Decimal(str(m))) > 0
+        ]
+        rcm_pool: list[list] = [
+            [y, abs(Decimal(str(m)))]
+            for y, m in sorted((opening_rcm_losses or {}).items())
+            if abs(Decimal(str(m))) > 0
+        ]
+
+        summaries = {s.year: s for s in self.get_all_yearly_summaries()}
+        years = sorted(set(summaries) | set(savings_income))
+        ledger = SavingsLedger()
+
+        def _expire(pool: list[list], bucket: str, year: int) -> list[list]:
+            survivors = []
+            for origin_year, remaining in pool:
+                if origin_year <= year - 5 and remaining > 0:
+                    ledger.expired.append((bucket, origin_year, remaining))
+                else:
+                    survivors.append([origin_year, remaining])
+            return survivors
+
+        def _consume(pool: list[list], gain: Decimal) -> Decimal:
+            """Consume oldest pool losses against a positive gain; return amount applied."""
+            applied = Decimal("0")
+            left = gain
+            for entry in sorted(pool):
+                if left <= 0:
+                    break
+                use = min(entry[1], left)
+                entry[1] -= use
+                left -= use
+                applied += use
+            pool[:] = [e for e in pool if e[1] > 0]
+            return applied
+
+        for year in years:
+            gp_pool = _expire(gp_pool, "G/L", year)
+            rcm_pool = _expire(rcm_pool, "RCM", year)
+
+            gp_net = summaries[year].net_gain_loss if year in summaries else Decimal("0")
+            inc = savings_income.get(year)
+            rcm_net = inc.rcm_net if inc else Decimal("0")
+            foreign_tax = inc.foreign_tax_eur if inc else Decimal("0")
+
+            # 1) Same-category prior-loss application against positive balances.
+            gp_after = gp_net
+            gp_applied = Decimal("0")
+            if gp_net > 0:
+                gp_applied = _consume(gp_pool, gp_net)
+                gp_after = gp_net - gp_applied
+
+            rcm_after = rcm_net
+            rcm_applied = Decimal("0")
+            if rcm_net > 0:
+                rcm_applied = _consume(rcm_pool, rcm_net)
+                rcm_after = rcm_net - rcm_applied
+
+            # 2) Cross-category offset (capped).
+            cap = self._cross_category_cap(year)
+            cross_offset = Decimal("0")
+            cross_direction = ""
+            if gp_after < 0 and rcm_after > 0:
+                cross_offset = min(-gp_after, (rcm_after * cap).quantize(Decimal("0.01"), ROUND_HALF_UP))
+                rcm_after -= cross_offset
+                gp_after += cross_offset
+                cross_direction = "gp->rcm"
+            elif rcm_after < 0 and gp_after > 0:
+                cross_offset = min(-rcm_after, (gp_after * cap).quantize(Decimal("0.01"), ROUND_HALF_UP))
+                gp_after -= cross_offset
+                rcm_after += cross_offset
+                cross_direction = "rcm->gp"
+
+            # 3) Remaining negatives carry forward; positives form the taxable base.
+            if gp_after < 0:
+                gp_pool.append([year, -gp_after])
+                gp_taxable = Decimal("0")
+            else:
+                gp_taxable = gp_after
+            if rcm_after < 0:
+                rcm_pool.append([year, -rcm_after])
+                rcm_taxable = Decimal("0")
+            else:
+                rcm_taxable = rcm_after
+
+            ledger.rows.append(
+                SavingsLedgerYear(
+                    year=year,
+                    gp_net=gp_net,
+                    rcm_net=rcm_net,
+                    gp_prior_applied=gp_applied,
+                    rcm_prior_applied=rcm_applied,
+                    cross_offset=cross_offset,
+                    cross_direction=cross_direction,
+                    gp_taxable=gp_taxable,
+                    rcm_taxable=rcm_taxable,
+                    foreign_tax_eur=foreign_tax,
+                )
+            )
+
+        ledger.gp_pending_end = sorted(
+            (oy, rem, oy + 4) for oy, rem in gp_pool if rem > 0
+        )
+        ledger.rcm_pending_end = sorted(
+            (oy, rem, oy + 4) for oy, rem in rcm_pool if rem > 0
+        )
+        return ledger
+
     def print_ledger(self) -> None:
         """Print the full transaction ledger in a readable format."""
         print("\n" + "=" * 120)
@@ -421,7 +564,7 @@ class TaxEngine:
 
         print("=" * 120)
 
-    def print_tax_summary(self, opening_losses: dict[int, Decimal] | None = None) -> None:
+    def print_tax_summary(self, opening_losses: dict[int, Decimal] | None = None, savings_income: dict[int, SavingsIncomeYear] | None = None) -> None:
         """Print the yearly tax summary."""
         print("\n" + "=" * 95)
         print("YEARLY TAX SUMMARY (Spain)")
@@ -455,34 +598,67 @@ class TaxEngine:
             print(f"    Estimated Tax Due:         €{summary.tax_due:>12,.2f}")
             print()
 
-        # 4-Year Loss Carryforward Ledger (Art. 49 LIRPF)
-        ledger = self.compute_carryforward(opening_losses)
-        print("\nLOSS CARRYFORWARD LEDGER (Art. 49 LIRPF)")
-        print("-" * 95)
-        if opening_losses:
-            seeded = ", ".join(f"{y}: €{abs(Decimal(str(a))):,.2f}" for y, a in sorted(opening_losses.items()))
-            print(f"Seeded with prior-year pending losses -> {seeded}")
-        print(
-            f"{'Year':<8} {'Net Result':>15} {'Prior Loss Applied':>20} "
-            f"{'Taxable After C/F':>20}"
-        )
-        for r in ledger.rows:
+        if savings_income:
+            # Two-bucket savings base supersedes the single-bucket ledger to avoid
+            # contradictory pending balances (cross-offset changes what carries forward).
+            sledger = self.compute_savings_ledger(savings_income, opening_losses=opening_losses)
+            print("\nSAVINGS BASE — CAPITAL GAINS + DIVIDENDS/INTEREST (Art. 48 & 49 LIRPF)")
+            print("-" * 95)
             print(
-                f"{r.year:<8} €{r.net_result:>14,.2f} €{r.prior_losses_applied:>19,.2f} "
-                f"€{r.taxable_after:>19,.2f}"
+                f"{'Year':<8} {'Capital G/L':>15} {'Div+Interest':>15} "
+                f"{'Cross Offset':>15} {'Savings Base':>15} {'Foreign Tax':>13}"
             )
-        if ledger.pending_end:
-            print("\n  Pending losses carried forward (still usable):")
-            for origin_year, remaining, use_by in ledger.pending_end:
-                print(f"    From {origin_year}: €{remaining:>12,.2f}  ->  use by {use_by}")
-        if ledger.expired:
-            print("\n  ⚠️  Losses that EXPIRED unused (4-year limit passed):")
-            for origin_year, amount in ledger.expired:
-                print(f"    From {origin_year}: €{amount:>12,.2f} lost")
-        if not ledger.pending_end and not ledger.expired and all(
-            r.prior_losses_applied == 0 for r in ledger.rows
-        ):
-            print("  No losses to carry forward.")
+            for r in sledger.rows:
+                print(
+                    f"{r.year:<8} €{r.gp_net:>14,.2f} €{r.rcm_net:>14,.2f} "
+                    f"€{r.cross_offset:>14,.2f} €{r.savings_base:>14,.2f} €{r.foreign_tax_eur:>12,.2f}"
+                )
+            if sledger.gp_pending_end:
+                print("\n  Pending capital losses carried forward:")
+                for oy, rem, ub in sledger.gp_pending_end:
+                    print(f"    From {oy}: €{rem:>12,.2f}  ->  use by {ub}")
+            if sledger.rcm_pending_end:
+                print("\n  Pending RCM (dividend/interest) losses carried forward:")
+                for oy, rem, ub in sledger.rcm_pending_end:
+                    print(f"    From {oy}: €{rem:>12,.2f}  ->  use by {ub}")
+            if sledger.expired:
+                print("\n  ⚠️  Losses that EXPIRED unused (4-year limit passed):")
+                for bucket, oy, amount in sledger.expired:
+                    print(f"    {bucket} from {oy}: €{amount:>12,.2f} lost")
+            if sledger.total_foreign_tax > 0:
+                print(
+                    f"\n  Foreign tax withheld total: €{sledger.total_foreign_tax:,.2f} "
+                    "(claim as deducción por doble imposición — advisor)."
+                )
+        else:
+            # 4-Year Loss Carryforward Ledger (capital gains only)
+            ledger = self.compute_carryforward(opening_losses)
+            print("\nLOSS CARRYFORWARD LEDGER (Art. 49 LIRPF)")
+            print("-" * 95)
+            if opening_losses:
+                seeded = ", ".join(f"{y}: €{abs(Decimal(str(a))):,.2f}" for y, a in sorted(opening_losses.items()))
+                print(f"Seeded with prior-year pending losses -> {seeded}")
+            print(
+                f"{'Year':<8} {'Net Result':>15} {'Prior Loss Applied':>20} "
+                f"{'Taxable After C/F':>20}"
+            )
+            for r in ledger.rows:
+                print(
+                    f"{r.year:<8} €{r.net_result:>14,.2f} €{r.prior_losses_applied:>19,.2f} "
+                    f"€{r.taxable_after:>19,.2f}"
+                )
+            if ledger.pending_end:
+                print("\n  Pending losses carried forward (still usable):")
+                for origin_year, remaining, use_by in ledger.pending_end:
+                    print(f"    From {origin_year}: €{remaining:>12,.2f}  ->  use by {use_by}")
+            if ledger.expired:
+                print("\n  ⚠️  Losses that EXPIRED unused (4-year limit passed):")
+                for origin_year, amount in ledger.expired:
+                    print(f"    From {origin_year}: €{amount:>12,.2f} lost")
+            if not ledger.pending_end and not ledger.expired and all(
+                r.prior_losses_applied == 0 for r in ledger.rows
+            ):
+                print("  No losses to carry forward.")
 
         print("\n" + "=" * 95)
         print("  NOTE: Transaction Fees (Commissions, SEC Fees) ARE DEDUCTED (Wire Transfers EXCLUDED)")
@@ -490,6 +666,191 @@ class TaxEngine:
         print("  NOTE: 'Est. Tax' is an ISOLATED estimate on these stock gains only — your real")
         print("  liability depends on total savings income and prior-year loss carryforward.")
         print("=" * 95 + "\n")
+
+    def _append_carryforward_section(
+        self, html: list[str], is_es: bool, opening_losses: dict[int, Decimal] | None
+    ) -> None:
+        """Append the single-bucket (capital-gains only) loss-carryforward ledger."""
+        ledger = self.compute_carryforward(opening_losses)
+        cf_title = (
+            "Loss Carryforward Ledger (Art. 49 LIRPF)"
+            if not is_es
+            else "Libro de Compensación de Pérdidas (Art. 49 LIRPF)"
+        )
+        html.append(f"<h2>{cf_title}</h2>")
+        if not is_es:
+            html.append(
+                "<p>Net losses in a year offset savings-base gains of the following "
+                "<strong>4 years</strong> (oldest losses first); unused losses then expire. "
+                "This ledger simulates that across the tracked years. Cross-category offset against "
+                "other savings income (dividends, interest) is still applied by your advisor at filing time.</p>"
+            )
+        else:
+            html.append(
+                "<p>Las pérdidas netas de un ejercicio compensan ganancias de la base del ahorro de los "
+                "<strong>4 ejercicios siguientes</strong> (primero las más antiguas); las no utilizadas caducan. "
+                "Este libro simula esa compensación entre los años analizados. La compensación con otras rentas "
+                "del ahorro (dividendos, intereses) la aplica tu asesor al presentar la declaración.</p>"
+            )
+        if opening_losses:
+            seeded = ", ".join(
+                f"{y}: €{abs(Decimal(str(a))):,.2f}" for y, a in sorted(opening_losses.items())
+            )
+            seed_label = (
+                f"Seeded with prior-year pending losses — {seeded}"
+                if not is_es
+                else f"Inicializado con pérdidas pendientes de años anteriores — {seeded}"
+            )
+            html.append(f"<p style='font-size: 11px; color: #555;'><em>{seed_label}</em></p>")
+
+        html.append("<table>")
+        if not is_es:
+            html.append(
+                "<tr><th>Year</th><th>Net Result</th><th>Prior-Year Loss Applied</th><th>Taxable After Carryforward</th></tr>"
+            )
+        else:
+            html.append(
+                "<tr><th>Año</th><th>Resultado Neto</th><th>Pérdida de Años Anteriores Aplicada</th><th>Base Tras Compensación</th></tr>"
+            )
+        for r in ledger.rows:
+            net_style = "gain" if r.net_result >= 0 else "loss"
+            html.append("<tr>")
+            html.append(f"<td>{r.year}</td>")
+            html.append(f"<td class='{net_style}'>€{r.net_result:,.2f}</td>")
+            html.append(f"<td>€{r.prior_losses_applied:,.2f}</td>")
+            html.append(f"<td><strong>€{r.taxable_after:,.2f}</strong></td>")
+            html.append("</tr>")
+        html.append("</table>")
+
+        if ledger.pending_end:
+            pend_label = (
+                "Pending losses carried forward (still usable):"
+                if not is_es
+                else "Pérdidas pendientes de compensar (aún utilizables):"
+            )
+            use_by_label = "use by" if not is_es else "usar antes de"
+            html.append(f"<p><strong>{pend_label}</strong></p><ul>")
+            for origin_year, remaining, use_by in ledger.pending_end:
+                html.append(
+                    f"<li class='loss'>{origin_year}: €{remaining:,.2f} — {use_by_label} {use_by}</li>"
+                )
+            html.append("</ul>")
+        if ledger.expired:
+            exp_label = (
+                "⚠️ Losses that EXPIRED unused (4-year limit passed):"
+                if not is_es
+                else "⚠️ Pérdidas CADUCADAS sin usar (superado el límite de 4 años):"
+            )
+            html.append(f"<p style='color:#cc0000;'><strong>{exp_label}</strong></p><ul>")
+            for origin_year, amount in ledger.expired:
+                html.append(f"<li style='color:#cc0000;'>{origin_year}: €{amount:,.2f}</li>")
+            html.append("</ul>")
+        if not ledger.pending_end and not ledger.expired and all(
+            r.prior_losses_applied == 0 for r in ledger.rows
+        ):
+            no_loss = (
+                "No losses to carry forward."
+                if not is_es
+                else "No hay pérdidas pendientes de compensar."
+            )
+            html.append(f"<p><em>{no_loss}</em></p>")
+
+    def _append_savings_section(
+        self,
+        html: list[str],
+        is_es: bool,
+        savings_income: dict[int, SavingsIncomeYear],
+        opening_losses: dict[int, Decimal] | None,
+    ) -> None:
+        """Append the two-bucket savings base (G/L + RCM) with the 25% cross-offset."""
+        sledger = self.compute_savings_ledger(savings_income, opening_losses=opening_losses)
+        title = (
+            "Savings Base — Capital Gains + Dividends/Interest (Art. 49 LIRPF)"
+            if not is_es
+            else "Base del Ahorro — Ganancias + Dividendos/Intereses (Art. 49 LIRPF)"
+        )
+        html.append(f"<h2>{title}</h2>")
+        if not is_es:
+            html.append(
+                "<p>Combines your stock gains/losses with dividend & interest income (RCM). "
+                "A net loss in one category offsets up to the legal cap (25% from 2018) of the other "
+                "category's positive balance; the rest carries forward 4 years. "
+                "<strong>Foreign tax withheld is shown for reference only</strong> — the "
+                "<em>deducción por doble imposición internacional</em> is applied by your advisor.</p>"
+            )
+        else:
+            html.append(
+                "<p>Combina tus ganancias/pérdidas bursátiles con los dividendos e intereses (RCM). "
+                "Una pérdida neta en una categoría compensa hasta el límite legal (25% desde 2018) del saldo "
+                "positivo de la otra; el resto se arrastra 4 años. "
+                "<strong>La retención en origen se muestra solo a título informativo</strong> — la "
+                "<em>deducción por doble imposición internacional</em> la aplica tu asesor.</p>"
+            )
+        html.append("<table>")
+        if not is_es:
+            html.append(
+                "<tr><th>Year</th><th>Capital G/L (net)</th><th>Dividends + Interest</th>"
+                "<th>Cross-Category Offset</th><th>Taxable Savings Base</th><th>Foreign Tax (info)</th></tr>"
+            )
+        else:
+            html.append(
+                "<tr><th>Año</th><th>Ganancia/Pérdida (neta)</th><th>Dividendos + Intereses</th>"
+                "<th>Compensación entre Categorías</th><th>Base del Ahorro Imponible</th><th>Retención Origen (info)</th></tr>"
+            )
+        for r in sledger.rows:
+            gp_style = "gain" if r.gp_net >= 0 else "loss"
+            offset_txt = f"€{r.cross_offset:,.2f}" if r.cross_offset > 0 else "—"
+            html.append("<tr>")
+            html.append(f"<td>{r.year}</td>")
+            html.append(f"<td class='{gp_style}'>€{r.gp_net:,.2f}</td>")
+            html.append(f"<td>€{r.rcm_net:,.2f}</td>")
+            html.append(f"<td>{offset_txt}</td>")
+            html.append(f"<td><strong>€{r.savings_base:,.2f}</strong></td>")
+            html.append(f"<td>€{r.foreign_tax_eur:,.2f}</td>")
+            html.append("</tr>")
+        html.append("</table>")
+
+        if sledger.total_foreign_tax > 0:
+            ft_label = (
+                f"Total foreign tax withheld: €{sledger.total_foreign_tax:,.2f} — "
+                "claim as deducción por doble imposición internacional (advisor)."
+                if not is_es
+                else f"Retención total en origen: €{sledger.total_foreign_tax:,.2f} — "
+                "reclámala como deducción por doble imposición internacional (asesor)."
+            )
+            html.append(f"<p style='font-size: 11px; color: #555;'><em>{ft_label}</em></p>")
+
+        use_by = "use by" if not is_es else "usar antes de"
+        if sledger.gp_pending_end:
+            lbl = (
+                "Pending capital losses carried forward:"
+                if not is_es
+                else "Pérdidas patrimoniales pendientes de compensar:"
+            )
+            html.append(f"<p><strong>{lbl}</strong></p><ul>")
+            for oy, rem, ub in sledger.gp_pending_end:
+                html.append(f"<li class='loss'>{oy}: €{rem:,.2f} — {use_by} {ub}</li>")
+            html.append("</ul>")
+        if sledger.rcm_pending_end:
+            lbl = (
+                "Pending RCM (dividend/interest) losses carried forward:"
+                if not is_es
+                else "Pérdidas de RCM (dividendos/intereses) pendientes de compensar:"
+            )
+            html.append(f"<p><strong>{lbl}</strong></p><ul>")
+            for oy, rem, ub in sledger.rcm_pending_end:
+                html.append(f"<li class='loss'>{oy}: €{rem:,.2f} — {use_by} {ub}</li>")
+            html.append("</ul>")
+        if sledger.expired:
+            exp_label = (
+                "⚠️ Losses that EXPIRED unused (4-year limit passed):"
+                if not is_es
+                else "⚠️ Pérdidas CADUCADAS sin usar (superado el límite de 4 años):"
+            )
+            html.append(f"<p style='color:#cc0000;'><strong>{exp_label}</strong></p><ul>")
+            for bucket, oy, amount in sledger.expired:
+                html.append(f"<li style='color:#cc0000;'>{bucket} {oy}: €{amount:,.2f}</li>")
+            html.append("</ul>")
 
     def _append_modelo100_guide(self, html: list[str], is_es: bool) -> None:
         """
@@ -525,6 +886,12 @@ class TaxEngine:
                 ("Net balance of gains/losses (savings base)",
                  "Saldo neto de ganancias y pérdidas patrimoniales a integrar en la base imponible del ahorro",
                  "≈ 0424 / 0425"),
+                ("Dividends & interest (RCM)",
+                 "Rendimientos del capital mobiliario a integrar en la base imponible del ahorro (dividends, interest)",
+                 "≈ 0027–0031"),
+                ("Foreign tax withheld (US)",
+                 "Deducción por doble imposición internacional",
+                 "≈ 0588 / 0589"),
                 ("Prior-year pending losses (this ledger's 'pending')",
                  "Saldos netos negativos de ejercicios anteriores pendientes de compensar (one box per origin year)",
                  "≈ 0439–0443"),
@@ -546,6 +913,12 @@ class TaxEngine:
                 ("Saldo neto de ganancias y pérdidas (base del ahorro)",
                  "Saldo neto de ganancias y pérdidas patrimoniales a integrar en la base imponible del ahorro",
                  "≈ 0424 / 0425"),
+                ("Dividendos e intereses (RCM)",
+                 "Rendimientos del capital mobiliario a integrar en la base imponible del ahorro (dividendos, intereses)",
+                 "≈ 0027–0031"),
+                ("Retención en origen (EE. UU.)",
+                 "Deducción por doble imposición internacional",
+                 "≈ 0588 / 0589"),
                 ("Pérdidas pendientes de años anteriores ('pendientes' de este libro)",
                  "Saldos netos negativos de ejercicios anteriores pendientes de compensar (una casilla por año de origen)",
                  "≈ 0439–0443"),
@@ -562,7 +935,7 @@ class TaxEngine:
             )
         html.append("</table>")
 
-    def generate_html_content(self, lang: str = "en", espp_discounts: dict[int, Decimal] | None = None, espp_early_sale_discounts: dict[int, Decimal] | None = None, opening_losses: dict[int, Decimal] | None = None) -> str:
+    def generate_html_content(self, lang: str = "en", espp_discounts: dict[int, Decimal] | None = None, espp_early_sale_discounts: dict[int, Decimal] | None = None, opening_losses: dict[int, Decimal] | None = None, savings_income: dict[int, SavingsIncomeYear] | None = None) -> str:
         """Generate HTML content for the tax report (supports English 'en' and Spanish 'es')."""
         is_es = lang.lower() == "es"
         
@@ -701,90 +1074,13 @@ class TaxEngine:
                 "Usa esta cifra como orientación, no como la cuota definitiva.</p>"
             )
 
-        # 4-Year Loss Carryforward Ledger (Art. 49 LIRPF)
-        ledger = self.compute_carryforward(opening_losses)
-        cf_title = (
-            "Loss Carryforward Ledger (Art. 49 LIRPF)"
-            if not is_es
-            else "Libro de Compensación de Pérdidas (Art. 49 LIRPF)"
-        )
-        html.append(f"<h2>{cf_title}</h2>")
-        if not is_es:
-            html.append(
-                "<p>Net losses in a year offset savings-base gains of the following "
-                "<strong>4 years</strong> (oldest losses first); unused losses then expire. "
-                "This ledger simulates that across the tracked years. Cross-category offset against "
-                "other savings income (dividends, interest) is still applied by your advisor at filing time.</p>"
-            )
+        # Loss handling: the two-bucket savings ledger supersedes the single-bucket
+        # carryforward ledger when dividend/interest is supplied (the cross-offset
+        # changes what carries forward, so showing both would contradict).
+        if savings_income:
+            self._append_savings_section(html, is_es, savings_income, opening_losses)
         else:
-            html.append(
-                "<p>Las pérdidas netas de un ejercicio compensan ganancias de la base del ahorro de los "
-                "<strong>4 ejercicios siguientes</strong> (primero las más antiguas); las no utilizadas caducan. "
-                "Este libro simula esa compensación entre los años analizados. La compensación con otras rentas "
-                "del ahorro (dividendos, intereses) la aplica tu asesor al presentar la declaración.</p>"
-            )
-        if opening_losses:
-            seeded = ", ".join(
-                f"{y}: €{abs(Decimal(str(a))):,.2f}" for y, a in sorted(opening_losses.items())
-            )
-            seed_label = (
-                f"Seeded with prior-year pending losses — {seeded}"
-                if not is_es
-                else f"Inicializado con pérdidas pendientes de años anteriores — {seeded}"
-            )
-            html.append(f"<p style='font-size: 11px; color: #555;'><em>{seed_label}</em></p>")
-
-        html.append("<table>")
-        if not is_es:
-            html.append(
-                "<tr><th>Year</th><th>Net Result</th><th>Prior-Year Loss Applied</th><th>Taxable After Carryforward</th></tr>"
-            )
-        else:
-            html.append(
-                "<tr><th>Año</th><th>Resultado Neto</th><th>Pérdida de Años Anteriores Aplicada</th><th>Base Tras Compensación</th></tr>"
-            )
-        for r in ledger.rows:
-            net_style = "gain" if r.net_result >= 0 else "loss"
-            html.append("<tr>")
-            html.append(f"<td>{r.year}</td>")
-            html.append(f"<td class='{net_style}'>€{r.net_result:,.2f}</td>")
-            html.append(f"<td>€{r.prior_losses_applied:,.2f}</td>")
-            html.append(f"<td><strong>€{r.taxable_after:,.2f}</strong></td>")
-            html.append("</tr>")
-        html.append("</table>")
-
-        if ledger.pending_end:
-            pend_label = (
-                "Pending losses carried forward (still usable):"
-                if not is_es
-                else "Pérdidas pendientes de compensar (aún utilizables):"
-            )
-            use_by_label = "use by" if not is_es else "usar antes de"
-            html.append(f"<p><strong>{pend_label}</strong></p><ul>")
-            for origin_year, remaining, use_by in ledger.pending_end:
-                html.append(
-                    f"<li class='loss'>{origin_year}: €{remaining:,.2f} — {use_by_label} {use_by}</li>"
-                )
-            html.append("</ul>")
-        if ledger.expired:
-            exp_label = (
-                "⚠️ Losses that EXPIRED unused (4-year limit passed):"
-                if not is_es
-                else "⚠️ Pérdidas CADUCADAS sin usar (superado el límite de 4 años):"
-            )
-            html.append(f"<p style='color:#cc0000;'><strong>{exp_label}</strong></p><ul>")
-            for origin_year, amount in ledger.expired:
-                html.append(f"<li style='color:#cc0000;'>{origin_year}: €{amount:,.2f}</li>")
-            html.append("</ul>")
-        if not ledger.pending_end and not ledger.expired and all(
-            r.prior_losses_applied == 0 for r in ledger.rows
-        ):
-            no_loss = (
-                "No losses to carry forward."
-                if not is_es
-                else "No hay pérdidas pendientes de compensar."
-            )
-            html.append(f"<p><em>{no_loss}</em></p>")
+            self._append_carryforward_section(html, is_es, opening_losses)
 
         # Modelo 100 box guide (apartado names are stable; casillas shift yearly)
         self._append_modelo100_guide(html, is_es)
@@ -976,7 +1272,7 @@ class TaxEngine:
         html.append("</body></html>")
         return "".join(html)
 
-    def generate_pdf_report(self, filepath: str, lang: str = "en", espp_discounts: dict[int, Decimal] | None = None, espp_early_sale_discounts: dict[int, Decimal] | None = None, opening_losses: dict[int, Decimal] | None = None) -> None:
+    def generate_pdf_report(self, filepath: str, lang: str = "en", espp_discounts: dict[int, Decimal] | None = None, espp_early_sale_discounts: dict[int, Decimal] | None = None, opening_losses: dict[int, Decimal] | None = None, savings_income: dict[int, SavingsIncomeYear] | None = None) -> None:
         """Generate a PDF tax report using Playwright (supports lang='en' or lang='es')."""
         try:
             from playwright.sync_api import sync_playwright
@@ -985,7 +1281,7 @@ class TaxEngine:
             print("Please install it with: pip install playwright && playwright install")
             return
 
-        html_content = self.generate_html_content(lang=lang, espp_discounts=espp_discounts, espp_early_sale_discounts=espp_early_sale_discounts, opening_losses=opening_losses)
+        html_content = self.generate_html_content(lang=lang, espp_discounts=espp_discounts, espp_early_sale_discounts=espp_early_sale_discounts, opening_losses=opening_losses, savings_income=savings_income)
 
         try:
             with sync_playwright() as p:

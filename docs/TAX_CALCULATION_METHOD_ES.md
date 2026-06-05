@@ -19,7 +19,7 @@ El motor fiscal implementa un sistema de cálculo FIFO (First-In, First-Out) tot
 | **Coste de Adquisición de ESPP** | ✅ Conforme | Valor de mercado (FMV) a fecha de compra |
 | **Control de Mantenimiento de 3 Años ESPP** | ✅ Autodetectado | Art. 42.3.f LIRPF — Identifica ventas tempranas y rendimiento del trabajo |
 | **Compensación de Pérdidas (4 años)** | ⚠️ Simulada | Art. 49 LIRPF — Libro de Compensación entre los años analizados; inicializa pérdidas previas con `prior_losses.json` (ver §4.1) |
-| **Compensación entre Categorías (límite 25%)** | ❌ Fuera de Ámbito | Art. 49 LIRPF — Requiere datos de dividendos/intereses; manual en el Modelo 100 (ver §4.1) |
+| **Compensación entre Categorías (límite 25%)** | ⚠️ Simulada | Art. 49 LIRPF — Se calcula al aportar `savings_income.json` (dividendos/intereses); el límite depende del año (ver §4.1) |
 | **Modelo 720 (Bienes en el Extranjero)** | ❌ Fuera de Ámbito | Obligación informativa independiente (si el saldo supera los 50.000 €) |
 
 ---
@@ -83,9 +83,9 @@ El **Resumen Fiscal Anual** informa las ganancias y pérdidas de cada año de fo
 
 > *Ejemplo:* 2024 arroja un neto de −3.000 € (pagas 0 € de impuesto y arrastras −3.000 €). 2025 tiene +5.000 € de ganancias → compensas los −3.000 €, por lo que solo tributan 2.000 €. El libro lo muestra directamente. **Las pérdidas anteriores a tu ventana de datos** no las ve el motor: inicialízalas con `input/prior_losses.json` (p. ej. `{"2024": 3000}`) o `--prior-losses <archivo>`.
 
-**b) Compensación entre categorías, límite del 25% (Art. 49 LIRPF).** La base del ahorro tiene dos compartimentos estancos: *ganancias/pérdidas patrimoniales* (tus ventas de acciones) y *rendimientos del capital mobiliario* (dividendos, intereses). Una pérdida neta en un compartimento puede compensar hasta el **25%** del saldo positivo del otro.
+**b) Compensación entre categorías, límite del 25% (Art. 49 LIRPF).** La base del ahorro tiene dos compartimentos estancos: *ganancias/pérdidas patrimoniales* (tus ventas de acciones) y *rendimientos del capital mobiliario* (dividendos, intereses). Una pérdida neta en un compartimento puede compensar hasta el **25%** del saldo positivo del otro (el límite depende del año: 10% en 2015, 15% en 2016, 20% en 2017, 25% desde 2018).
 
-> *Ejemplo:* una pérdida neta de −2.000 € en acciones puede reducir tu base de dividendos/intereses hasta el 25% de dicho importe en el mismo año; el remanente no utilizado se arrastra 4 años. El motor solo ve operaciones con acciones, por lo que no puede calcular esto: tu asesor lo combina con tus cifras de dividendos/intereses.
+> *Ejemplo:* una pérdida neta de −2.000 € en acciones puede reducir tu base de dividendos/intereses hasta el 25% de dicho importe en el mismo año; el remanente no utilizado se arrastra 4 años. El motor lo calcula **al aportar `input/savings_income.json`** (dividendos/intereses en EUR); si no, solo ve operaciones con acciones. La retención en origen se informa a título orientativo — la *deducción por doble imposición internacional* la aplica tu asesor.
 
 **Qué facilitar a tu asesor:** la ganancia/pérdida neta anual de este motor, para que la encaje en las casillas de compensación (arrastre y entre categorías) del Modelo 100 junto con tus demás rentas del ahorro.
 
