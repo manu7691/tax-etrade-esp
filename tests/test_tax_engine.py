@@ -302,3 +302,66 @@ class TestWashSaleRefinement:
         assert summary.blocked_losses == Decimal("-60.0000")
         assert summary.deductible_losses == Decimal("-140.0000")
         assert "Wash Sale Blocked" in engine.processed_events[1].event.notes
+
+    def test_replacement_shares_block_only_one_sale(self):
+        """A single replacement lot must not block more than one loss sale.
+
+        Two separate loss sales both fall within 2 months of the same surviving
+        repurchase. The replacement shares can neutralize at most their own count
+        of sold shares in total — not once per sale.
+        """
+        engine = TaxEngine()
+
+        events = [
+            # Two independent acquisitions, each fully sold at a loss.
+            StockEvent(
+                event_date=date(2021, 3, 1),
+                event_type=EventType.BUY,
+                shares=Decimal("10"),
+                price_usd=Decimal("50.00"),
+                fx_rate=Decimal("1.00"),
+            ),
+            StockEvent(
+                event_date=date(2021, 3, 10),
+                event_type=EventType.BUY,
+                shares=Decimal("10"),
+                price_usd=Decimal("50.00"),
+                fx_rate=Decimal("1.00"),
+            ),
+            # Sell #1 at a loss (FIFO consumes the 03-01 lot).
+            StockEvent(
+                event_date=date(2021, 4, 1),
+                event_type=EventType.SELL,
+                shares=Decimal("10"),
+                price_usd=Decimal("30.00"),
+                fx_rate=Decimal("1.00"),
+            ),
+            # Sell #2 at a loss (FIFO consumes the 03-10 lot).
+            StockEvent(
+                event_date=date(2021, 4, 20),
+                event_type=EventType.SELL,
+                shares=Decimal("10"),
+                price_usd=Decimal("30.00"),
+                fx_rate=Decimal("1.00"),
+            ),
+            # A single repurchase of 4 shares, within 2 months of BOTH sales.
+            StockEvent(
+                event_date=date(2021, 5, 1),
+                event_type=EventType.BUY,
+                shares=Decimal("4"),
+                price_usd=Decimal("32.00"),
+                fx_rate=Decimal("1.00"),
+            ),
+        ]
+
+        engine.process_all(events)
+
+        summary = engine.get_yearly_summary(2021)
+        assert summary is not None
+        # Two sales, each loss (30-50)*10 = -200 → total -400.
+        assert summary.total_losses == Decimal("-400.0000")
+        # Only 4 replacement shares exist, so only 4 shares of loss may be blocked
+        # in total: 4/10 * -200 = -80 (claimed entirely by the first sale).
+        # The buggy behavior blocked -80 on EACH sale (-160 total).
+        assert summary.blocked_losses == Decimal("-80.0000")
+        assert summary.deductible_losses == Decimal("-320.0000")

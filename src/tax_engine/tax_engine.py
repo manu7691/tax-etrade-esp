@@ -205,43 +205,53 @@ class TaxEngine:
             day = min(d.day, calendar.monthrange(year, month)[1])
             return date(year, month, day)
 
-        # Build list of all acquisition events with their remaining shares after
-        # all processing is complete (self.state.lots reflects final state)
-        acquisition_events = [
-            pe
-            for pe in self.processed_events
-            if pe.event.event_type in (EventType.VEST, EventType.BUY, EventType.EXERCISE)
-        ]
-
-        # Map acquisition date+price to remaining shares in lots (after all sells)
-        # We need the lot objects to check remaining_shares
-        lot_remaining: dict[tuple[date, Decimal], Decimal] = {}
+        # Build a consumable pool of "replacement" shares: lots that still hold
+        # shares after all processing is complete (self.state.lots reflects the
+        # final state). Each surviving share can block at most ONE sold share —
+        # so the pool is decremented as it is claimed. Without this, a single
+        # replacement lot sitting in the 2-month window of several loss sales
+        # would block each of them independently, over-deferring the losses.
+        replacement_pool: dict[tuple[date, Decimal], Decimal] = {}
         for lot in self.state.lots:
-            key = (lot.acquisition_date, lot.price_eur)
-            lot_remaining[key] = lot_remaining.get(key, Decimal("0")) + lot.remaining_shares
+            if lot.remaining_shares > 0:
+                key = (lot.acquisition_date, lot.price_eur)
+                replacement_pool[key] = replacement_pool.get(key, Decimal("0")) + lot.remaining_shares
 
-        for pe in self.processed_events:
-            if pe.event.event_type != EventType.SELL or pe.realized_gain_loss >= 0:
-                continue
+        # Process loss-making sells chronologically so earlier sales claim
+        # replacement shares first (a deterministic allocation when windows overlap).
+        loss_sells = sorted(
+            (
+                pe
+                for pe in self.processed_events
+                if pe.event.event_type == EventType.SELL and pe.realized_gain_loss < 0
+            ),
+            key=lambda pe: pe.event.event_date,
+        )
 
+        for pe in loss_sells:
             sale_date = pe.event.event_date
             start_window = _add_months(sale_date, -2)
             end_window = _add_months(sale_date, 2)
 
-            # Find acquisitions within the 2-month window that still have remaining shares
-            # These are the "replacement" shares that trigger the blocking rule
-            replacement_shares = Decimal("0")
-            for acq_pe in acquisition_events:
-                acq_date = acq_pe.event.event_date
-                if start_window <= acq_date <= end_window:
-                    # Check if this acquisition lot still has shares remaining
-                    key = (acq_date, acq_pe.event.price_eur)
-                    remaining = lot_remaining.get(key, Decimal("0"))
-                    if remaining > 0:
-                        replacement_shares += remaining
+            # Claim replacement shares acquired within the 2-month window, consuming
+            # them from the pool so they cannot block another sale's loss as well.
+            blocked_shares = Decimal("0")
+            remaining_to_block = pe.event.shares
+            for key in sorted(replacement_pool.keys()):
+                if remaining_to_block <= 0:
+                    break
+                acq_date, _acq_price = key
+                if not (start_window <= acq_date <= end_window):
+                    continue
+                available = replacement_pool[key]
+                if available <= 0:
+                    continue
+                used = min(available, remaining_to_block)
+                replacement_pool[key] -= used
+                blocked_shares += used
+                remaining_to_block -= used
 
-            if replacement_shares > 0:
-                blocked_shares = min(pe.event.shares, replacement_shares)
+            if blocked_shares > 0:
                 blocked_loss = (pe.realized_gain_loss / pe.event.shares * blocked_shares).quantize(
                     Decimal("0.0001"), ROUND_HALF_UP
                 )

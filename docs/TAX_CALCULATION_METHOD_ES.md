@@ -18,7 +18,8 @@ El motor fiscal implementa un sistema de cálculo FIFO (First-In, First-Out) tot
 | **Coste de Adquisición de RSU** | ✅ Conforme | Valor de mercado (FMV) a fecha de liberación (evita doble imposición) |
 | **Coste de Adquisición de ESPP** | ✅ Conforme | Valor de mercado (FMV) a fecha de compra |
 | **Control de Mantenimiento de 3 Años ESPP** | ✅ Autodetectado | Art. 42.3.f LIRPF — Identifica ventas tempranas y rendimiento del trabajo |
-| **Compensación de Pérdidas Multianual** | ❌ Fuera de Ámbito | Art. 49 LIRPF — Debe aplicarse de forma manual en el Modelo 100 |
+| **Compensación de Pérdidas (4 años)** | ❌ Fuera de Ámbito | Art. 49 LIRPF — Requiere datos de otros años; manual en el Modelo 100 (ver §4.1) |
+| **Compensación entre Categorías (límite 25%)** | ❌ Fuera de Ámbito | Art. 49 LIRPF — Requiere datos de dividendos/intereses; manual en el Modelo 100 (ver §4.1) |
 | **Modelo 720 (Bienes en el Extranjero)** | ❌ Fuera de Ámbito | Obligación informativa independiente (si el saldo supera los 50.000 €) |
 
 ---
@@ -72,8 +73,25 @@ El descuento del ESPP (hasta 12.000 € anuales) está exento de tributación si
 
 ## 4. Limitaciones de Ámbito y Advertencias
 
-1. **Compensación de Pérdidas (Art. 49 LIRPF):** El motor calcula saldos anuales independientes. Si el saldo general de la base del ahorro resulta negativo en un año, el contribuyente dispone de los 4 ejercicios siguientes para compensar dichas pérdidas. **Tu gestor o asesor fiscal debe declarar esta compensación en el Modelo 100.**
-2. **Un Solo Ticker:** El motor fiscal asume que todas las operaciones son sobre el mismo valor (ej. acciones de tu empleador). Si negocias diferentes acciones, debes procesar archivos independientes para no mezclar los lotes FIFO.
+> **Por qué no se automatizan:** cada punto siguiente necesita datos que el motor nunca ve — tus resultados de *otros años* o ingresos de *otras categorías* (dividendos, intereses). Esto corresponde al Modelo 100 final, donde todo se agrega. El motor produce una hoja de cálculo anual y de un solo valor; las reglas siguientes se aplican encima de ella en el momento de presentar la declaración.
+
+### 4.1 Tratamiento de Pérdidas (Art. 48 y 49 LIRPF)
+
+El motor informa las ganancias y pérdidas de cada año de forma independiente y nunca arrastra saldos entre años ni entre tipos de renta. Se aplican dos reglas manuales al presentar la declaración:
+
+**a) Compensación en 4 años (Art. 49 LIRPF).** Si tu *base del ahorro* resulta negativa en un año —las pérdidas superan a las ganancias— la pérdida no se pierde. Se arrastra para compensar ganancias durante los **4 ejercicios siguientes**.
+
+> *Ejemplo:* 2024 arroja un neto de −3.000 € (pagas 0 € de impuesto y arrastras −3.000 €). 2025 tiene +5.000 € de ganancias → compensas los −3.000 € arrastrados, por lo que solo tributan 2.000 €. El motor mostraría 2025 con una ganancia imponible completa de 5.000 €, porque nunca vio la pérdida de 2024.
+
+**b) Compensación entre categorías, límite del 25% (Art. 49 LIRPF).** La base del ahorro tiene dos compartimentos estancos: *ganancias/pérdidas patrimoniales* (tus ventas de acciones) y *rendimientos del capital mobiliario* (dividendos, intereses). Una pérdida neta en un compartimento puede compensar hasta el **25%** del saldo positivo del otro.
+
+> *Ejemplo:* una pérdida neta de −2.000 € en acciones puede reducir tu base de dividendos/intereses hasta el 25% de dicho importe en el mismo año; el remanente no utilizado se arrastra 4 años. El motor solo ve operaciones con acciones, por lo que no puede calcular esto: tu asesor lo combina con tus cifras de dividendos/intereses.
+
+**Qué facilitar a tu asesor:** la ganancia/pérdida neta anual de este motor, para que la encaje en las casillas de compensación (arrastre y entre categorías) del Modelo 100 junto con tus demás rentas del ahorro.
+
+### 4.2 Otras limitaciones
+
+2. **Un Solo Ticker:** El motor fiscal asume que todas las operaciones son sobre el mismo valor (en la práctica, las acciones de tu empleador). Si negocias diferentes acciones, debes procesar archivos independientes para no mezclar los lotes FIFO.
 3. **Modelo 720:** Si tus cuentas o valores en el extranjero superan conjuntamente los 50.000 € a 31 de diciembre (o en saldos medios del último trimestre), debes presentar la declaración informativa Modelo 720 de forma independiente.
 
 ---

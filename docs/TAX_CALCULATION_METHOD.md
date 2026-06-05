@@ -18,7 +18,8 @@ The engine implements a fully compliant First-In, First-Out (FIFO) calculation s
 | **RSU Vesting Cost Basis** | ✅ Compliant | FMV at release date (prevents double taxation) |
 | **ESPP Purchase Cost Basis** | ✅ Compliant | FMV at purchase date |
 | **ESPP 3-Year Holding Period** | ✅ Auto-Detected | Art. 42.3.f LIRPF — Identifies early sales and salary tax |
-| **Loss Carryforward** | ❌ Out of Scope | Art. 49 LIRPF — Must be handled manually in Modelo 100 |
+| **4-Year Loss Carryforward** | ❌ Out of Scope | Art. 49 LIRPF — Needs other years' data; manual in Modelo 100 (see §4.1) |
+| **Cross-Category Offset (25% cap)** | ❌ Out of Scope | Art. 49 LIRPF — Needs dividend/interest data; manual in Modelo 100 (see §4.1) |
 | **Modelo 720 (Foreign Assets)** | ❌ Out of Scope | Separate annual obligation (if assets abroad > €50,000) |
 
 ---
@@ -72,8 +73,25 @@ Discounts on ESPP purchases (up to €12,000/year) are tax-exempt if:
 
 ## 4. Scope Limitations & Caveats
 
-1. **Loss Carryforward (Art. 49 LIRPF):** The engine calculates net taxable bases on a strictly yearly basis. If you have net capital losses in a year, they can be carried forward to offset gains for the next 4 years. **Your tax advisor must apply this carryforward manually on your tax return.**
-2. **Single Ticker Assumption:** The engine assumes all input transactions apply to the same company stock. If you trade multiple tickers, separate files must be processed to prevent FIFO lot mixing.
+> **Why these are not automated:** each item below needs data the engine never sees — your results from *other years*, or income from *other categories* (dividends, interest). These belong in the final Modelo 100, where everything is aggregated. The engine produces a per-year, single-instrument worksheet; the rules below are applied on top of it at filing time.
+
+### 4.1 Loss Handling (Art. 48 & 49 LIRPF)
+
+The engine reports each year's gains and losses independently and never carries a balance across years or income types. Two manual rules apply at filing time:
+
+**a) 4-year carryforward (Art. 49 LIRPF).** If your *savings base* (base del ahorro) is net negative in a year — total losses exceed total gains — the loss is not lost. It carries forward to offset gains over the **next 4 years**.
+
+> *Example:* 2024 nets −€3,000 (pay €0 tax, carry −€3,000 forward). 2025 has +€5,000 in gains → offset the carried −€3,000, so only €2,000 is taxed. The engine would show 2025 as a full €5,000 taxable gain, because it never saw the 2024 loss.
+
+**b) Cross-category offset, 25% cap (Art. 49 LIRPF).** The savings base has two ringfenced buckets: *capital gains/losses* (your stock sales) and *returns on movable capital* (dividends, interest). A net loss in one bucket may offset up to **25%** of the positive balance in the other.
+
+> *Example:* a −€2,000 net stock loss can reduce your taxable dividend/interest income by up to 25% of that income in the same year; any unused remainder carries forward for 4 years. The engine only sees stock transactions, so it cannot compute this — your advisor combines it with your dividend/interest figures.
+
+**What to give your advisor:** this engine's net gain/loss per year, so they can slot it into the carryforward and cross-category boxes of Modelo 100 alongside your other savings income.
+
+### 4.2 Other limitations
+
+2. **Single Ticker Assumption:** The engine assumes all input transactions apply to the same company stock (in practice, your employer's shares). If you trade multiple tickers, separate files must be processed to prevent FIFO lot mixing.
 3. **Modelo 720:** If your foreign bank accounts or stock portfolios (like E-Trade) exceed a value of €50,000 at any point during the year (or as of Dec 31st), you must file the Modelo 720 informative declaration. The engine does not generate this form.
 
 ---

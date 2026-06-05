@@ -135,7 +135,7 @@ class YearlyTaxSummary:
     total_gains: Decimal = Decimal("0")
     total_losses: Decimal = Decimal("0")
     blocked_losses: Decimal = Decimal("0")
-    total_fees_eur: Decimal = Decimal("0")  # Spanish 2-month rule blocked losses (negative or zero)
+    total_fees_eur: Decimal = Decimal("0")  # Total transaction fees deducted (EUR)
 
     @property
     def deductible_losses(self) -> Decimal:
