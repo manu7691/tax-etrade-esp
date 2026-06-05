@@ -1,9 +1,10 @@
 """
-Interactive helper to add/update dividend & interest (RCM) income.
+Interactive helper to record dividend & interest (RCM) payments.
 
-Writes/merges ``input/savings_income.json`` — the file the tax report reads to
-compute the dividend/interest savings base and the 25% cross-category offset —
-so you never have to hand-edit JSON.
+Writes/merges ``input/savings_income.json`` as a list of **USD payments, each with
+its date** — the tax report converts every payment to EUR at the ECB rate on that
+date (exactly like stock transactions) and computes the dividend/interest savings
+base and the 25% cross-category offset. You never hand-edit JSON.
 
 Interactive::
 
@@ -12,17 +13,18 @@ Interactive::
 One-shot (non-interactive)::
 
     .venv/bin/python -m tax_engine.cli_savings_income \
-        --year 2024 --dividends 320 --interest 15 --foreign-tax 48
+        --date 2024-03-15 --type dividend --amount-usd 80 --foreign-tax-usd 12
 
-Existing years are preserved; only the year you enter is added or updated.
+Each run appends; existing payments are preserved.
 """
 
 import argparse
 import json
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-FIELDS = ("dividends_eur", "interest_eur", "foreign_tax_eur")
+TYPES = ("dividend", "interest")
 
 
 def _json_num(d: Decimal) -> float | int:
@@ -30,89 +32,105 @@ def _json_num(d: Decimal) -> float | int:
     return int(d) if d == d.to_integral_value() else float(d)
 
 
-def load_raw(path: Path) -> dict:
-    """Load the savings-income JSON as a plain dict, or {} if absent/unreadable."""
+def load_payments(path: Path) -> list | None:
+    """
+    Load the payments list, or [] if absent.
+
+    Returns None (and warns) if the file is an EUR-per-year object rather than a
+    payments list, so we never clobber a hand-made EUR file.
+    """
     if not path.exists():
-        return {}
+        return []
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
-        return data if isinstance(data, dict) else {}
     except (json.JSONDecodeError, OSError):
         print(f"Warning: {path} is unreadable; starting fresh.")
-        return {}
+        return []
+    if isinstance(data, dict):
+        print(
+            f"{path} is in the EUR-per-year format. This tool writes USD payments.\n"
+            "Move/rename that file first, or hand-edit it instead."
+        )
+        return None
+    return data if isinstance(data, list) else []
 
 
-def save_raw(path: Path, data: dict) -> None:
-    """Write the savings-income dict to disk, sorted by year."""
+def save_payments(path: Path, payments: list) -> None:
+    """Write the payments list to disk, sorted by date."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    ordered = {y: data[y] for y in sorted(data)}
+    ordered = sorted(payments, key=lambda p: str(p.get("date", "")))
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(ordered, fh, indent=2)
         fh.write("\n")
 
 
-def upsert(
-    data: dict,
-    year: int,
-    dividends: Decimal,
-    interest: Decimal,
-    foreign_tax: Decimal,
-) -> dict:
-    """Add or replace one year's entry, leaving every other year untouched."""
-    data = dict(data)
-    data[str(year)] = {
-        "dividends_eur": _json_num(dividends),
-        "interest_eur": _json_num(interest),
-        "foreign_tax_eur": _json_num(foreign_tax),
+def append_payment(
+    payments: list,
+    date_str: str,
+    ptype: str,
+    amount_usd: Decimal,
+    foreign_tax_usd: Decimal,
+) -> list:
+    """Return a new list with one validated payment appended."""
+    pay_date = date.fromisoformat(date_str.strip())  # raises ValueError if invalid
+    norm_type = "interest" if ptype.strip().lower().startswith("int") else "dividend"
+    entry = {
+        "date": pay_date.isoformat(),
+        "type": norm_type,
+        "amount_usd": _json_num(amount_usd),
     }
-    return data
+    if foreign_tax_usd != 0:
+        entry["foreign_tax_usd"] = _json_num(foreign_tax_usd)
+    return [*payments, entry]
 
 
-def _to_decimal(value: str | None, default) -> Decimal:
-    """Parse a string to Decimal; blank/None falls back to ``default``."""
-    if value is None or str(value).strip() == "":
-        return Decimal(str(default))
-    return Decimal(str(value).strip().replace(",", "."))
+def _eur_preview(date_str: str, amount_usd: Decimal) -> str:
+    """Best-effort EUR preview at the ECB rate for the given date."""
+    try:
+        from tax_engine.ecb_rates import ECBRateFetcher
+
+        rate = ECBRateFetcher.get_rate(date.fromisoformat(date_str))
+        return f"≈ €{(amount_usd * rate):,.2f} at ECB rate {rate}"
+    except Exception:
+        return "(EUR conversion happens when the report runs)"
 
 
-def _prompt_decimal(label: str, default) -> Decimal:
-    """Prompt until a valid number is entered; blank keeps the default."""
+def _prompt_decimal(label: str, default: str = "0") -> Decimal:
     while True:
         raw = input(f"  {label} [{default}]: ").strip()
         try:
-            return _to_decimal(raw, default)
+            return Decimal((raw or default).replace(",", "."))
         except InvalidOperation:
-            print("    Please enter a number (e.g. 320.50), or leave blank.")
+            print("    Please enter a number (e.g. 80.50).")
 
 
-def _interactive(data: dict, path: Path) -> None:
-    print("Enter dividend/interest income per year (EUR). Leave a field blank to keep it.\n")
+def _interactive(payments: list, path: Path) -> None:
+    print("Record each dividend/interest payment in USD with its date.\n")
     while True:
+        date_str = input("Payment date (YYYY-MM-DD): ").strip()
         try:
-            year = int(input("Year (e.g. 2024): ").strip())
+            date.fromisoformat(date_str)
         except ValueError:
-            print("  Please enter a 4-digit year.")
+            print("  Please use YYYY-MM-DD.")
             continue
+        ptype = input("  Type [dividend/interest] (dividend): ").strip() or "dividend"
+        amount = _prompt_decimal("Amount (USD)")
+        ftax = _prompt_decimal("Foreign tax withheld (USD)")
 
-        existing = data.get(str(year), {})
-        div = _prompt_decimal("Dividends received (EUR)", existing.get("dividends_eur", 0))
-        intr = _prompt_decimal("Interest received (EUR)", existing.get("interest_eur", 0))
-        ftax = _prompt_decimal("Foreign tax withheld (EUR)", existing.get("foreign_tax_eur", 0))
+        payments = append_payment(payments, date_str, ptype, amount, ftax)
+        save_payments(path, payments)
+        print(f"  ✓ Saved. {_eur_preview(date_str, amount)}\n")
 
-        data = upsert(data, year, div, intr, ftax)
-        save_raw(path, data)
-        print(f"  ✓ Saved {year} to {path}\n")
-
-        if input("Add another year? [y/N]: ").strip().lower() not in ("y", "yes"):
+        if input("Add another payment? [y/N]: ").strip().lower() not in ("y", "yes"):
             break
 
-    print(f"\nFinal {path}:\n{json.dumps({y: data[y] for y in sorted(data)}, indent=2)}")
+    print(f"\n{len(payments)} payment(s) in {path}.")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Add or update dividend/interest (RCM) income in savings_income.json."
+        description="Record dividend/interest (RCM) payments (USD + date) in savings_income.json."
     )
     parser.add_argument("--file", type=Path, default=None, help="Target JSON file.")
     parser.add_argument(
@@ -121,28 +139,28 @@ def main() -> None:
         default=Path("input"),
         help="Directory holding savings_income.json (default: input).",
     )
-    parser.add_argument("--year", type=int, help="Year to set (enables non-interactive mode).")
-    parser.add_argument("--dividends", type=str, help="Dividends received in EUR.")
-    parser.add_argument("--interest", type=str, help="Interest received in EUR.")
-    parser.add_argument("--foreign-tax", type=str, help="Foreign tax withheld in EUR.")
+    parser.add_argument("--date", type=str, help="Payment date YYYY-MM-DD (non-interactive mode).")
+    parser.add_argument("--type", type=str, default="dividend", help="dividend or interest.")
+    parser.add_argument("--amount-usd", type=str, help="Payment amount in USD.")
+    parser.add_argument("--foreign-tax-usd", type=str, default="0", help="US tax withheld in USD.")
     args = parser.parse_args()
 
     path: Path = args.file or (args.input_dir / "savings_income.json")
-    data = load_raw(path)
+    payments = load_payments(path)
+    if payments is None:
+        return  # legacy EUR file present; load_payments already explained.
 
-    if args.year is not None:
-        existing = data.get(str(args.year), {})
+    if args.date is not None:
         try:
-            div = _to_decimal(args.dividends, existing.get("dividends_eur", 0))
-            intr = _to_decimal(args.interest, existing.get("interest_eur", 0))
-            ftax = _to_decimal(args.foreign_tax, existing.get("foreign_tax_eur", 0))
-        except InvalidOperation:
-            parser.error("--dividends/--interest/--foreign-tax must be numbers.")
-        data = upsert(data, args.year, div, intr, ftax)
-        save_raw(path, data)
-        print(f"✓ Saved {args.year} to {path}:\n{json.dumps(data[str(args.year)], indent=2)}")
+            amount = Decimal((args.amount_usd or "0").replace(",", "."))
+            ftax = Decimal((args.foreign_tax_usd or "0").replace(",", "."))
+            payments = append_payment(payments, args.date, args.type, amount, ftax)
+        except (ValueError, InvalidOperation) as e:
+            parser.error(f"invalid --date/--amount-usd/--foreign-tax-usd: {e}")
+        save_payments(path, payments)
+        print(f"✓ Appended payment to {path}. {_eur_preview(args.date, amount)}")
     else:
-        _interactive(data, path)
+        _interactive(payments, path)
 
 
 if __name__ == "__main__":

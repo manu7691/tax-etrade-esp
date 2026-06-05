@@ -10,7 +10,7 @@ Main entry point for the application.
 import argparse
 import json
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 
 import pandas as pd
@@ -54,16 +54,59 @@ def load_prior_losses(path: Path) -> dict[int, Decimal]:
     return result
 
 
+def _aggregate_usd_payments(payments: list) -> dict[int, SavingsIncomeYear]:
+    """
+    Convert a list of USD dividend/interest payments to per-year EUR totals.
+
+    Each payment is converted at the ECB USD->EUR rate on its own payment date,
+    exactly like stock transactions, then summed per year::
+
+        [{"date": "2024-03-15", "type": "dividend", "amount_usd": 80,
+          "foreign_tax_usd": 12}, ...]
+    """
+    from tax_engine.ecb_rates import ECBRateFetcher
+
+    result: dict[int, SavingsIncomeYear] = {}
+    for i, p in enumerate(payments):
+        try:
+            pay_date = date.fromisoformat(str(p["date"]).strip())
+            rate = ECBRateFetcher.get_rate(pay_date)
+            amount_eur = (Decimal(str(p.get("amount_usd", 0))) * rate).quantize(
+                Decimal("0.01"), ROUND_HALF_UP
+            )
+            ftax_eur = (Decimal(str(p.get("foreign_tax_usd", 0))) * rate).quantize(
+                Decimal("0.01"), ROUND_HALF_UP
+            )
+        except (ValueError, KeyError, InvalidOperation) as e:
+            print(f"Warning: skipping invalid payment #{i + 1} ({p!r}): {e}")
+            continue
+        entry = result.setdefault(pay_date.year, SavingsIncomeYear(year=pay_date.year))
+        if str(p.get("type", "dividend")).strip().lower().startswith("int"):
+            entry.interest_eur += amount_eur
+        else:
+            entry.dividends_eur += amount_eur
+        entry.foreign_tax_eur += ftax_eur
+    return result
+
+
 def load_savings_income(path: Path) -> dict[int, SavingsIncomeYear]:
     """
-    Load dividend/interest (RCM) income per year, in EUR.
+    Load dividend/interest (RCM) income, returning per-year EUR totals.
 
-    Expects a JSON object keyed by year, e.g.::
+    Two input shapes are accepted:
 
-        {"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}
+    * **USD payments (exact)** — a JSON *list*, each converted at the ECB rate on
+      its payment date (recommended; consistent with stock transactions)::
 
-    All keys are optional and default to 0. Returns an empty dict if the file
-    does not exist or cannot be parsed.
+          [{"date": "2024-03-15", "type": "dividend", "amount_usd": 80,
+            "foreign_tax_usd": 12}, ...]
+
+    * **EUR per year (manual)** — a JSON *object* keyed by year, where you have
+      already converted to EUR::
+
+          {"2024": {"dividends_eur": 320, "interest_eur": 15, "foreign_tax_eur": 48}}
+
+    Returns an empty dict if the file is absent or unparseable.
     """
     if not path.exists():
         return {}
@@ -74,7 +117,16 @@ def load_savings_income(path: Path) -> dict[int, SavingsIncomeYear]:
         print(f"Warning: could not read savings-income file {path}: {e}")
         return {}
 
-    result: dict[int, SavingsIncomeYear] = {}
+    if isinstance(raw, list):
+        result = _aggregate_usd_payments(raw)
+        if result:
+            print(
+                f"Loaded {len(raw)} dividend/interest payment(s) "
+                f"(USD, ECB-converted per date) across {len(result)} year(s) from {path}."
+            )
+        return result
+
+    result = {}
     for year_str, vals in raw.items():
         try:
             year = int(year_str)
@@ -88,7 +140,7 @@ def load_savings_income(path: Path) -> dict[int, SavingsIncomeYear]:
         except (ValueError, InvalidOperation):
             print(f"Warning: skipping invalid savings-income entry {year_str!r}: {vals!r}")
     if result:
-        print(f"Loaded dividend/interest income for {len(result)} year(s) from {path}.")
+        print(f"Loaded dividend/interest income for {len(result)} year(s) (EUR) from {path}.")
     return result
 
 
