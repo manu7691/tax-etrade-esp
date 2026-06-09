@@ -30,6 +30,7 @@ from tax_engine.cli_main import (
     load_savings_income,
 )
 from tax_engine.market_data import (
+    fetch_company_name,
     fetch_historical_market_data,
     fetch_peers_data,
 )
@@ -61,6 +62,29 @@ def load_peers_config(input_dir: Path) -> list[str]:
         except Exception:
             pass
     return DEFAULT_PEERS
+
+
+def load_ticker_config(input_dir: Path) -> tuple[str | None, str | None]:
+    """Load main ticker and optional company name from input/ticker.json or input/ticker.txt if they exist."""
+    json_path = input_dir / "ticker.json"
+    if json_path.exists():
+        try:
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                ticker = data.get("ticker", "").strip().upper() or None
+                company_name = data.get("company_name", "").strip() or None
+                return ticker, company_name
+            elif isinstance(data, str):
+                return data.strip().upper(), None
+        except Exception:
+            pass
+    txt_path = input_dir / "ticker.txt"
+    if txt_path.exists():
+        try:
+            return txt_path.read_text(encoding="utf-8").strip().upper(), None
+        except Exception:
+            pass
+    return None, None
 
 
 def detect_ticker(input_dir: Path) -> str | None:
@@ -118,17 +142,78 @@ def main():
         help="Peer tickers for the comparison chart (e.g. --peers DDOG ESTC AAPL). "
              "Overrides input/peers.json and built-in defaults.",
     )
+    parser.add_argument(
+        "--ticker",
+        type=str,
+        default=None,
+        help="Main stock ticker symbol (e.g. DT, DDOG). Overrides config files and auto-detection.",
+    )
+    parser.add_argument(
+        "--company-name",
+        type=str,
+        default=None,
+        help="Main stock company name (e.g. Dynatrace, Datadog). Overrides config files and API lookup.",
+    )
     args = parser.parse_args()
 
     input_dir = Path("input")
 
-    # Detect ticker symbol from the existing data
-    ticker = detect_ticker(input_dir)
-    if ticker:
-        print(f"Detected stock ticker from data: {ticker}")
-    else:
+    # Resolve main ticker
+    ticker = None
+    config_company_name = None
+    if args.ticker:
+        ticker = args.ticker.strip().upper()
+        print(f"Using ticker from command line argument: {ticker}")
+
+    if not ticker:
+        ticker, config_company_name = load_ticker_config(input_dir)
+        if ticker:
+            print(f"Loaded ticker from configuration file: {ticker}")
+
+    if not ticker:
+        ticker = detect_ticker(input_dir)
+        if ticker:
+            print(f"Detected stock ticker from data: {ticker}")
+
+    if not ticker:
         ticker = "DT"
         print(f"Could not detect ticker from data; falling back to: {ticker}")
+
+    # Resolve company name
+    company_name = None
+    if args.company_name:
+        company_name = args.company_name.strip()
+        print(f"Using company name from command line argument: {company_name}")
+
+    if not company_name and config_company_name:
+        company_name = config_company_name
+        print(f"Using company name from configuration file: {company_name}")
+
+    if not company_name:
+        # Try fetching company name from Yahoo Finance
+        company_name = fetch_company_name(ticker)
+        if company_name:
+            print(f"Fetched company name from Yahoo Finance: {company_name}")
+
+    if not company_name:
+        # Hardcoded fallback list
+        COMPANY_MAP = {
+            "DT": "Dynatrace",
+            "DDOG": "Datadog",
+            "ESTC": "Elastic",
+            "AAPL": "Apple",
+            "MSFT": "Microsoft",
+            "GOOG": "Google",
+            "GOOGL": "Google",
+            "AMZN": "Amazon",
+            "NFLX": "Netflix",
+            "META": "Meta",
+            "TSLA": "Tesla",
+        }
+        company_name = COMPANY_MAP.get(ticker, ticker)
+
+    if not company_name:
+        company_name = ticker
 
     # Decide whether to include ESPP analysis. Only ask when ESPP data exists.
     espp_present = bool(build_espp_purchase_map(input_dir))
@@ -333,6 +418,7 @@ def main():
     html_content = html_content.replace("__PEER_DATA__", json.dumps(peer_data))
     html_content = html_content.replace("__PEER_TICKERS__", json.dumps(peer_tickers))
     html_content = html_content.replace("__TICKER__", ticker)
+    html_content = html_content.replace("__COMPANY_NAME__", company_name)
     html_content = html_content.replace("__SAVINGS_INCOME__", json.dumps(savings_income_rows))
     html_content = html_content.replace("__CURRENT_YEAR_RCM__", str(current_year_rcm))
 

@@ -30,15 +30,18 @@ Options:
 
 | Flag | Effect |
 |------|--------|
-| *(none)* | Auto-detects everything and fetches the live price. |
+| *(none)* | Auto-detects everything (checks configuration files then `BenefitHistory.xlsx`) and fetches the live price. |
+| `--ticker TICKER` | Manually specify the stock ticker (e.g. `--ticker DDOG`). Overrides configuration files and auto-detection. |
+| `--company-name NAME` | Manually specify the company name (e.g. `--company-name Datadog`). Overrides configuration files and API lookup. |
 | `--current-price 45.50` | Use a fixed USD price instead of the live one. |
 | `--include-espp` / `--skip-espp` | Force-include or exclude ESPP analysis (skips the prompt). |
 | `--peers DDOG MSFT NVDA` | Override the peer tickers used in the comparison chart (space-separated). |
 
 Notes:
 
-- The **stock ticker is auto-detected** from your data (`BenefitHistory.xlsx`) — you no
-  longer pass it as a parameter.
+- The **stock ticker is auto-detected** from your data (`BenefitHistory.xlsx`) by default, falling back to `DT`.
+- The **company name is automatically fetched** via Yahoo Finance API or defaults to a local mapping.
+- You can persistently configure the main ticker by creating **`input/ticker.txt`** containing just the ticker symbol (e.g. `DDOG`), or **`input/ticker.json`** like `{"ticker": "DDOG", "company_name": "Datadog"}` (with `company_name` being optional).
 - If **ESPP data is present**, you're asked whether to include the ESPP analysis. If you
   have no ESPP data, that step is skipped automatically.
 - The first run needs internet (to fetch the live price and historical prices); after

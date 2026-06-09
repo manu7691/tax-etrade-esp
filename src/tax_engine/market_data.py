@@ -160,3 +160,21 @@ def fetch_peers_data(peers: list[str], start_date: date) -> dict[str, list[dict]
             print(f"Warning: Failed to fetch peer comparison for {peer}: {e}")
             
     return peers_quotes
+
+
+def fetch_company_name(ticker: str) -> str | None:
+    """Fetch the company name for a given ticker from Yahoo Finance search API."""
+    try:
+        url = f"https://query1.finance.yahoo.com/v1/finance/search?q={ticker}&quotesCount=1"
+        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            quotes = data.get("quotes", [])
+            if quotes:
+                # Try longname, then shortname, then symbol
+                name = quotes[0].get("longname") or quotes[0].get("shortname")
+                if name:
+                    return str(name).strip()
+    except Exception as e:
+        print(f"Warning: Failed to fetch company name for {ticker}: {e}")
+    return None

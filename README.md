@@ -158,6 +158,7 @@ Generate it from **menu option 6** ("Generate Charts & Tax Dashboard"), or direc
 
 ```bash
 uv run generate_charts.py            # auto-detects ticker, fetches the live price
+uv run generate_charts.py --ticker DDOG            # or specify a stock ticker manually
 uv run generate_charts.py --current-price 45.50   # or pin a fixed USD price
 ```
 
@@ -361,6 +362,7 @@ Genéralo desde la **opción 6 del menú** ("Generate Charts & Tax Dashboard"), 
 
 ```bash
 uv run generate_charts.py            # detecta el ticker y obtiene el precio en vivo
+uv run generate_charts.py --ticker DDOG            # o especifica manualmente un ticker de acción
 uv run generate_charts.py --current-price 45.50   # o fija un precio en USD
 ```
 

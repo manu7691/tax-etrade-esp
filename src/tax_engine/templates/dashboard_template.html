@@ -803,7 +803,7 @@
                     <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="intel_macro_desc">Events that strongly dictate tech stock valuations:</p>
                     <ul style="font-size: 0.85rem; margin: 0; padding-left: 18px; color: var(--text-secondary); line-height: 1.5;">
                         <li style="margin-bottom: 8px;" data-i18n="intel_li_rates"><strong style="color: var(--text-primary);">Central Bank Interest Rates</strong>: Lower rates usually boost high-growth tech valuations; higher rates depress them.</li>
-                        <li style="margin-bottom: 8px;" data-i18n="intel_li_news"><strong style="color: var(--text-primary);">Live Earnings Reports</strong>: Track Dynatrace (DT) upcoming earnings reports and announcements to avoid selling right before volatile reports.</li>
+                        <li style="margin-bottom: 8px;" data-i18n="intel_li_news"><strong style="color: var(--text-primary);">Live Earnings Reports</strong>: Track __COMPANY_NAME__ (__TICKER__) upcoming earnings reports and announcements to avoid selling right before volatile reports.</li>
                     </ul>
                 </div>
             </div>
@@ -822,9 +822,9 @@
                     <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--accent-blue);" data-i18n="alerts_sec2_title">Real-Time Price & Indicator Alerts</h3>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;" data-i18n="alerts_sec2_desc">Set up instant push notifications on your phone or email using TradingView or your broker when indicators cross:</p>
                     <ul style="font-size: 0.85rem; padding-left: 18px; color: var(--text-secondary); line-height: 1.6; margin: 0;">
-                        <li style="margin-bottom: 10px;" data-i18n="alerts_rule_sma"><strong>SMA Crossover</strong>: Trigger when DT price crosses the 50-day or 200-day SMA (Bullish/Bearish signal changes).</li>
+                        <li style="margin-bottom: 10px;" data-i18n="alerts_rule_sma"><strong>SMA Crossover</strong>: Trigger when __TICKER__ price crosses the 50-day or 200-day SMA (Bullish/Bearish signal changes).</li>
                         <li style="margin-bottom: 10px;" data-i18n="alerts_rule_fx"><strong>Exchange Rate Threshold</strong>: Trigger when USD/EUR exchange rate drops below 0.90 (dollar devaluing) or rises above 0.95 (dollar strengthening).</li>
-                        <li style="margin-bottom: 10px;" data-i18n="alerts_rule_earnings"><strong>Broker Earnings Calendar</strong>: Enable notifications for Dynatrace (DT) and peer earnings reports to avoid selling right before massive volatility.</li>
+                        <li style="margin-bottom: 10px;" data-i18n="alerts_rule_earnings"><strong>Broker Earnings Calendar</strong>: Enable notifications for __COMPANY_NAME__ (__TICKER__) and peer earnings reports to avoid selling right before massive volatility.</li>
                     </ul>
                     <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                         <a id="link-tradingview" href="https://www.tradingview.com/chart/?symbol=__TICKER__" target="_blank" class="calendar-btn" style="padding: 8px 14px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 500;" data-i18n="alerts_btn_tview">Set up TradingView Alerts</a>
@@ -841,7 +841,7 @@
                         <label style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 6px;" data-i18n="generator_label_select">Select Alert Type:</label>
                         <select id="alertTypeSelect" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-size: 0.85rem; font-family: inherit; outline: none;" onchange="updateAlertGenerator()">
                             <option value="fx" selected data-i18n="opt_fx">USD/EUR Exchange Rate</option>
-                            <option value="dt_sma" data-i18n="opt_dt_sma">Dynatrace (DT) Price vs SMA 200</option>
+                            <option value="dt_sma" data-i18n="opt_dt_sma">__COMPANY_NAME__ (__TICKER__) Price vs SMA 200</option>
                             <option value="peer_earnings" id="opt-peer-earnings">Peer Earnings News</option>
                             <option value="espp_unlock" data-i18n="opt_espp_unlock">ESPP Next Tax Unlock Date</option>
                         </select>
@@ -933,6 +933,7 @@
         const currentYearRcm = __CURRENT_YEAR_RCM__;
         const peerTickers = __PEER_TICKERS__;
         const mainTicker = "__TICKER__";
+        const companyName = "__COMPANY_NAME__";
 
         // --- Localized date helpers ---
         const MONTHS_SHORT = {
@@ -1107,16 +1108,16 @@
                 intel_macro_title: "Macro Factors & News",
                 intel_macro_desc: "Events that strongly dictate tech stock valuations:",
                 intel_li_rates: "<strong style=\"color: var(--text-primary);\">Central Bank Interest Rates</strong>: Lower rates usually boost high-growth tech valuations; higher rates depress them.",
-                intel_li_news: "<strong style=\"color: var(--text-primary);\">Live Earnings Reports</strong>: Track Dynatrace (DT) upcoming earnings reports and announcements to avoid selling right before volatile reports.",
+                intel_li_news: `<strong style="color: var(--text-primary);">Live Earnings Reports</strong>: Track ${companyName} (${mainTicker}) upcoming earnings reports and announcements to avoid selling right before volatile reports.`,
                 th_calendar_alert: "Alerts",
                 add_to_calendar: "Add Reminder",
                 alerts_card_title: "Market Sentinel & Sell Alert Configurator",
                 alerts_card_desc: "Set up automated push notifications, calendar alerts, and email notifications to know exactly when to sell without checking the dashboard daily.",
                 alerts_sec2_title: "Real-Time Price & Indicator Alerts",
                 alerts_sec2_desc: "Set up instant push notifications on your phone or email using TradingView or your broker when indicators cross:",
-                alerts_rule_sma: "<strong>SMA Crossover</strong>: Trigger when DT price crosses the 50-day or 200-day SMA (Bullish/Bearish signal changes).",
+                alerts_rule_sma: `<strong>SMA Crossover</strong>: Trigger when ${mainTicker} price crosses the 50-day or 200-day SMA (Bullish/Bearish signal changes).`,
                 alerts_rule_fx: "<strong>Exchange Rate Threshold</strong>: Trigger when USD/EUR exchange rate drops below 0.90 (dollar devaluing) or rises above 0.95 (dollar strengthening).",
-                alerts_rule_earnings: "<strong>Broker Earnings Calendar</strong>: Enable notifications for Dynatrace (DT) and peer earnings reports to avoid selling right before massive volatility.",
+                alerts_rule_earnings: `<strong>Broker Earnings Calendar</strong>: Enable notifications for ${companyName} (${mainTicker}) and peer earnings reports to avoid selling right before massive volatility.`,
                 alerts_btn_tview: "Set up TradingView Alerts",
                 alerts_btn_galerts: "Set up Google Alerts",
                 generator_title: "Quick Alert Creator",
@@ -1287,16 +1288,16 @@
                 intel_macro_title: "Factores Macroeconómicos y Noticias",
                 intel_macro_desc: "Eventos que condicionan fuertemente la valoración de las acciones tecnológicas:",
                 intel_li_rates: "<strong style=\"color: var(--text-primary);\">Tipos de Interés de Bancos Centrales</strong>: Tipos más bajos suelen impulsar las valoraciones tecnológicas de alto crecimiento; tipos más altos las deprimen.",
-                intel_li_news: "<strong style=\"color: var(--text-primary);\">Informes de Resultados en Directo</strong>: Siga los próximos informes de resultados y anuncios de Dynatrace (DT) para evitar vender justo antes de informes volátiles.",
+                intel_li_news: `<strong style="color: var(--text-primary);">Informes de Resultados en Directo</strong>: Siga los próximos informes de resultados y anuncios de ${companyName} (${mainTicker}) para evitar vender justo antes de informes volátiles.`,
                 th_calendar_alert: "Alertas",
                 add_to_calendar: "Recordatorio",
                 alerts_card_title: "Centinela del Mercado y Configurador de Alertas",
                 alerts_card_desc: "Configure notificaciones push automáticas, alertas de calendario y correos para saber exactamente cuándo vender sin necesidad de revisar este panel todos los días.",
                 alerts_sec2_title: "Alertas de Precio e Indicadores en Tiempo Real",
                 alerts_sec2_desc: "Configure notificaciones push en su móvil o email usando TradingView o su bróker cuando los indicadores crucen:",
-                alerts_rule_sma: "<strong>Cruce de SMA</strong>: Activar cuando el precio de DT cruce la SMA de 50 o 200 días (cambio de señal alcista/bajista).",
+                alerts_rule_sma: `<strong>Cruce de SMA</strong>: Activar cuando el precio de ${mainTicker} cruce la SMA de 50 o 200 días (cambio de señal alcista/bajista).`,
                 alerts_rule_fx: "<strong>Límite de Tipo de Cambio</strong>: Activar cuando el tipo USD/EUR caiga por debajo de 0.90 (dólar devaluándose) o suba por encima de 0.95 (dólar fortaleciéndose).",
-                alerts_rule_earnings: "<strong>Calendario de Resultados del Bróker</strong>: Active avisos para los informes de resultados de Dynatrace (DT) y sus pares para evitar vender antes de alta volatilidad.",
+                alerts_rule_earnings: `<strong>Calendario de Resultados del Bróker</strong>: Active avisos para los informes de resultados de ${companyName} (${mainTicker}) y sus pares para evitar vender antes de alta volatilidad.`,
                 alerts_btn_tview: "Configurar Alertas en TradingView",
                 alerts_btn_galerts: "Configurar Alertas de Google",
                 generator_title: "Creador Rápido de Alertas",
@@ -1983,16 +1984,16 @@
                     <p style="margin: 0; color: var(--text-secondary); font-size: 0.8rem;">💡 <strong>${isEs ? 'Cómo configurarlo' : 'How to set it'}:</strong> ${action}</p>
                 `;
             } else if (val === 'dt_sma') {
-                const title = isEs ? "Dynatrace (DT) vs SMA 200" : "Dynatrace (DT) vs SMA 200";
+                const title = isEs ? `${companyName} (${mainTicker}) vs SMA 200` : `${companyName} (${mainTicker}) vs SMA 200`;
                 const desc = isEs ? 
                     "El promedio móvil simple de 200 días indica la tendencia a largo plazo. Cruzar por debajo de él es una señal bajista de venta, mientras que cotizar por encima indica buen momento de mercado." : 
                     "The 200-day Simple Moving Average indicates long-term trend. Crossing below is a bearish sell signal, while trading above indicates strong market momentum.";
                 const rec = isEs ? 
-                    "<strong>Alerta recomendada:</strong> Avisar cuando el precio de DT cruce a la baja la SMA de 200 días." : 
-                    "<strong>Recommended Alert:</strong> Trigger alert when DT price crosses below its 200-day SMA.";
+                    `<strong>Alerta recomendada:</strong> Avisar cuando el precio de ${mainTicker} cruce a la baja la SMA de 200 días.` : 
+                    `<strong>Recommended Alert:</strong> Trigger alert when ${mainTicker} price crosses below its 200-day SMA.`;
                 const action = isEs ? 
-                    "En TradingView, abra el gráfico de <code>DT</code>, añada el indicador <code>Simple Moving Average</code> (configurado a 200) y cree una alerta configurando Precio Cruzando SMA 200." : 
-                    "On TradingView, open <code>DT</code> chart, add <code>Simple Moving Average</code> indicator (length 200) and set alert for Price crossing SMA 200.";
+                    `En TradingView, abra el gráfico de <code>${mainTicker}</code>, añada el indicador <code>Simple Moving Average</code> (configurado a 200) y cree una alerta configurando Precio Cruzando SMA 200.` : 
+                    `On TradingView, open <code>${mainTicker}</code> chart, add <code>Simple Moving Average</code> indicator (length 200) and set alert for Price crossing SMA 200.`;
                 
                 html = `
                     <h4 style="margin: 0 0 6px 0; color: var(--accent-blue);">${title}</h4>

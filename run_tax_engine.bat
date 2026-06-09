@@ -109,11 +109,15 @@ if "%choice%"=="5" (
 if "%choice%"=="6" (
     echo ------------------------------------------
     echo Generate Charts ^& Tax Dashboard
-    echo (Ticker auto-detected. Peers: edit input\peers.json or enter below.)
+    echo (Defaults: auto-detected ticker/company. Peers: edit input\peers.json)
     echo ------------------------------------------
     set CHART_ARGS=
+    set /p chart_ticker="Enter stock ticker (or Enter to auto-detect/fallback to DT): "
+    if defined chart_ticker set CHART_ARGS=--ticker %chart_ticker%
+    set /p chart_comp="Enter company name (or Enter to fetch from Yahoo Finance): "
+    if defined chart_comp set CHART_ARGS=%CHART_ARGS% --company-name "%chart_comp%"
     set /p chart_price="Enter current stock price in USD (or press Enter for live): "
-    if defined chart_price set CHART_ARGS=--current-price %chart_price%
+    if defined chart_price set CHART_ARGS=%CHART_ARGS% --current-price %chart_price%
     if not exist "input\peers.json" (
         set /p peer_input="Peer tickers, space-separated (or Enter for defaults DDOG ESTC): "
         if defined peer_input set CHART_ARGS=%CHART_ARGS% --peers %peer_input%

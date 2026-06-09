@@ -31,15 +31,18 @@ Opciones:
 
 | Flag | Efecto |
 |------|--------|
-| *(ninguno)* | Detecta todo automáticamente y obtiene el precio en vivo. |
+| *(ninguno)* | Detecta todo automáticamente (revisa archivos de configuración y luego `BenefitHistory.xlsx`) y obtiene el precio en vivo. |
+| `--ticker TICKER` | Especifica manualmente el ticker de la acción (p. ej. `--ticker DDOG`). Anula los archivos de configuración y la detección automática. |
+| `--company-name NAME` | Especifica manualmente el nombre de la empresa (p. ej. `--company-name Datadog`). Anula los archivos de configuración y la búsqueda por API. |
 | `--current-price 45.50` | Usa un precio fijo en USD en vez del precio en vivo. |
 | `--include-espp` / `--skip-espp` | Fuerza incluir o excluir el análisis de ESPP (omite la pregunta). |
 | `--peers DDOG MSFT NVDA` | Establece los tickers de pares para el gráfico comparativo (separados por espacio). |
 
 Notas:
 
-- El **ticker de la acción se detecta automáticamente** de tus datos
-  (`BenefitHistory.xlsx`) — ya no se pasa como parámetro.
+- El **ticker de la acción se detecta automáticamente** de tus datos (`BenefitHistory.xlsx`) de forma predeterminada, con fallback a `DT`.
+- El **nombre de la empresa se obtiene automáticamente** a través de la API de Yahoo Finance o recurre a un mapeo local.
+- Puedes configurar de forma persistente el ticker principal creando **`input/ticker.txt`** que contenga solo el símbolo (p. ej. `DDOG`), o **`input/ticker.json`** como `{"ticker": "DDOG", "company_name": "Datadog"}` (con `company_name` opcional).
 - Si **hay datos de ESPP**, se te pregunta si quieres incluir el análisis de ESPP. Si no
   tienes datos de ESPP, ese paso se omite automáticamente.
 - La primera ejecución necesita internet (para obtener el precio en vivo y los precios

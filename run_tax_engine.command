@@ -113,12 +113,20 @@ while true; do
         6)
             echo "------------------------------------------"
             echo "Generate Charts & Tax Dashboard"
-            echo "(Ticker auto-detected. Peers: edit input/peers.json or enter below.)"
+            echo "(Defaults: auto-detected ticker/company. Peers: edit input/peers.json)"
             echo "------------------------------------------"
             CHART_ARGS=""
+            read -p "Enter stock ticker (or Enter to auto-detect/fallback to DT): " chart_ticker
+            if [ -n "$chart_ticker" ]; then
+                CHART_ARGS="--ticker $chart_ticker"
+                read -p "Enter company name (or Enter to fetch from Yahoo Finance): " chart_comp
+                if [ -n "$chart_comp" ]; then
+                    CHART_ARGS="$CHART_ARGS --company-name \"$chart_comp\""
+                fi
+            fi
             read -p "Enter current stock price in USD (or press Enter for live): " chart_price
             if [ -n "$chart_price" ]; then
-                CHART_ARGS="--current-price $chart_price"
+                CHART_ARGS="$CHART_ARGS --current-price $chart_price"
             fi
             if [ ! -f "input/peers.json" ]; then
                 read -p "Peer tickers to compare, space-separated (or Enter for defaults DDOG ESTC): " peer_input
