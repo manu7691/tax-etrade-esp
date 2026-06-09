@@ -45,6 +45,24 @@ from tax_engine.dashboard_helpers import (
 )
 
 
+DEFAULT_PEERS = ["DDOG", "ESTC"]
+
+
+def load_peers_config(input_dir: Path) -> list[str]:
+    """Load peer tickers from input/peers.json; fall back to DEFAULT_PEERS."""
+    peers_path = input_dir / "peers.json"
+    if peers_path.exists():
+        try:
+            data = json.loads(peers_path.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                tickers = [str(t).strip().upper() for t in data if str(t).strip()]
+                if tickers:
+                    return tickers
+        except Exception:
+            pass
+    return DEFAULT_PEERS
+
+
 def detect_ticker(input_dir: Path) -> str | None:
     """Detect the stock ticker symbol from any sheet in BenefitHistory.xlsx."""
     excel_path = input_dir / "espp" / "BenefitHistory.xlsx"
@@ -92,6 +110,13 @@ def main():
         "--skip-espp",
         action="store_true",
         help="Exclude ESPP analysis from the dashboard.",
+    )
+    parser.add_argument(
+        "--peers",
+        nargs="+",
+        metavar="TICKER",
+        help="Peer tickers for the comparison chart (e.g. --peers DDOG ESTC AAPL). "
+             "Overrides input/peers.json and built-in defaults.",
     )
     args = parser.parse_args()
 
@@ -150,13 +175,20 @@ def main():
     first_transaction_date = all_events[0].event_date
     hist_quotes, live_p, sma50, sma200, signal, advice = fetch_historical_market_data(ticker, first_transaction_date)
 
-    # Calculate DT normalized returns & fetch peer data
+    # Resolve peer tickers: CLI flag > peers.json > built-in defaults
+    if args.peers:
+        peer_tickers = [t.strip().upper() for t in args.peers if t.strip()]
+    else:
+        peer_tickers = load_peers_config(input_dir)
+    print(f"Peer tickers for comparison: {', '.join(peer_tickers)}")
+
+    # Calculate main ticker normalized returns & fetch peer data
     dt_normalized = build_dt_normalized_returns(hist_quotes, first_transaction_date)
 
     peer_data = {
-        "DT": dt_normalized,
+        ticker: dt_normalized,
     }
-    peers_fetched = fetch_peers_data(["DDOG", "ESTC"], first_transaction_date)
+    peers_fetched = fetch_peers_data(peer_tickers, first_transaction_date)
     peer_data.update(peers_fetched)
 
 
@@ -299,6 +331,8 @@ def main():
     html_content = html_content.replace("__MY_AVG_COST_USD__", str(float(avg_cost_usd)))
     html_content = html_content.replace("__FIRST_TRANSACTION_DATE__", first_transaction_date.isoformat())
     html_content = html_content.replace("__PEER_DATA__", json.dumps(peer_data))
+    html_content = html_content.replace("__PEER_TICKERS__", json.dumps(peer_tickers))
+    html_content = html_content.replace("__TICKER__", ticker)
     html_content = html_content.replace("__SAVINGS_INCOME__", json.dumps(savings_income_rows))
     html_content = html_content.replace("__CURRENT_YEAR_RCM__", str(current_year_rcm))
 

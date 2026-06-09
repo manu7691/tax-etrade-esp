@@ -778,20 +778,7 @@
                 <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); padding: 16px; border-radius: 12px;">
                     <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--accent-blue);" data-i18n="intel_competitors_title">Observability Peer Group</h3>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="intel_competitors_desc">Track and compare real-time pricing, valuation multiples, and trends of key peer companies:</p>
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-                        <a href="https://finance.yahoo.com/quote/DDOG" target="_blank" style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;">
-                            <span><strong>Datadog</strong> (DDOG)</span>
-                            <span style="color: var(--accent-blue);">👁️ View Live ➔</span>
-                        </a>
-                        <a href="https://finance.yahoo.com/quote/ESTC" target="_blank" style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;">
-                            <span><strong>Elastic</strong> (ESTC)</span>
-                            <span style="color: var(--accent-blue);">👁️ View Live ➔</span>
-                        </a>
-                        <a href="https://finance.yahoo.com/quote/CSCO" target="_blank" style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;">
-                            <span><strong>Cisco / Splunk</strong> (CSCO)</span>
-                            <span style="color: var(--accent-blue);">👁️ View Live ➔</span>
-                        </a>
-                    </div>
+                    <div id="peer-links-list" style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;"></div>
                 </div>
 
                 <!-- Live Comparison Tools -->
@@ -799,11 +786,11 @@
                     <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--accent-green);" data-i18n="intel_tools_title">Market Comparisons</h3>
                     <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="intel_tools_desc">Compare charts and valuation metrics side-by-side with peers:</p>
                     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-                        <a href="https://finance.yahoo.com/quote/DT/peers" target="_blank" style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;">
-                            <span data-i18n="intel_peer_analysis">DT Peer Valuation Analysis</span>
+                        <a id="link-peer-analysis" href="https://finance.yahoo.com/quote/__TICKER__/peers" target="_blank" style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;">
+                            <span data-i18n="intel_peer_analysis">Peer Valuation Analysis</span>
                             <span style="color: var(--accent-green);" data-i18n="intel_btn_analyze">📊 Analyze ➔</span>
                         </a>
-                        <a href="https://finance.yahoo.com/chart/DT" target="_blank" style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;">
+                        <a id="link-interactive-chart" href="https://finance.yahoo.com/chart/__TICKER__" target="_blank" style="color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;">
                             <span data-i18n="intel_interactive_chart">Interactive Performance Chart</span>
                             <span style="color: var(--accent-green);" data-i18n="intel_btn_compare">📈 Compare ➔</span>
                         </a>
@@ -840,7 +827,7 @@
                         <li style="margin-bottom: 10px;" data-i18n="alerts_rule_earnings"><strong>Broker Earnings Calendar</strong>: Enable notifications for Dynatrace (DT) and peer earnings reports to avoid selling right before massive volatility.</li>
                     </ul>
                     <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                        <a href="https://www.tradingview.com/chart/?symbol=NYSE%3ADT" target="_blank" class="calendar-btn" style="padding: 8px 14px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 500;" data-i18n="alerts_btn_tview">Set up TradingView Alerts</a>
+                        <a id="link-tradingview" href="https://www.tradingview.com/chart/?symbol=__TICKER__" target="_blank" class="calendar-btn" style="padding: 8px 14px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 500;" data-i18n="alerts_btn_tview">Set up TradingView Alerts</a>
                         <a href="https://www.google.com/alerts" target="_blank" class="calendar-btn" style="padding: 8px 14px; background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 500;" data-i18n="alerts_btn_galerts">Set up Google Alerts</a>
                     </div>
                 </div>
@@ -855,7 +842,7 @@
                         <select id="alertTypeSelect" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-size: 0.85rem; font-family: inherit; outline: none;" onchange="updateAlertGenerator()">
                             <option value="fx" selected data-i18n="opt_fx">USD/EUR Exchange Rate</option>
                             <option value="dt_sma" data-i18n="opt_dt_sma">Dynatrace (DT) Price vs SMA 200</option>
-                            <option value="ddog_earnings" data-i18n="opt_ddog_earnings">Datadog (DDOG) Earnings News</option>
+                            <option value="peer_earnings" id="opt-peer-earnings">Peer Earnings News</option>
                             <option value="espp_unlock" data-i18n="opt_espp_unlock">ESPP Next Tax Unlock Date</option>
                         </select>
                     </div>
@@ -871,7 +858,7 @@
         <div class="card full-width">
             <h2 data-i18n="peer_chart_title">Observability Peer Comparison (Normalized Performance)</h2>
             <div class="analysis-text" data-i18n="peer_chart_desc">
-                Compares the percentage return of Dynatrace (DT) vs. Datadog (DDOG) and Elastic (ESTC) since your first transaction date. All lines start at 0% on day one.
+                Compares the percentage return of your stock vs. configured peers since your first transaction date. All lines start at 0% on day one.
             </div>
             <div class="chart-container chart-container-large">
                 <canvas id="peerChart"></canvas>
@@ -944,6 +931,8 @@
         const unsoldLots = __UNSOLD_LOTS__;
         const savingsIncome = __SAVINGS_INCOME__;
         const currentYearRcm = __CURRENT_YEAR_RCM__;
+        const peerTickers = __PEER_TICKERS__;
+        const mainTicker = "__TICKER__";
 
         // --- Localized date helpers ---
         const MONTHS_SHORT = {
@@ -1111,7 +1100,7 @@
                 intel_competitors_desc: "Track and compare real-time pricing, valuation multiples, and trends of key peer companies:",
                 intel_tools_title: "Market Comparisons",
                 intel_tools_desc: "Compare charts and valuation metrics side-by-side with peers:",
-                intel_peer_analysis: "DT Peer Valuation Analysis",
+                intel_peer_analysis: `${mainTicker} Peer Valuation Analysis`,
                 intel_interactive_chart: "Interactive Performance Chart",
                 intel_btn_analyze: "📊 Analyze ➔",
                 intel_btn_compare: "📈 Compare ➔",
@@ -1134,8 +1123,7 @@
                 generator_desc: "Select a key metric to generate your recommended alert configuration:",
                 generator_label_select: "Select Alert Type:",
                 opt_fx: "USD/EUR Exchange Rate",
-                opt_dt_sma: "Dynatrace (DT) Price vs SMA 200",
-                opt_ddog_earnings: "Datadog (DDOG) Earnings News",
+                opt_dt_sma: `${mainTicker} Price vs SMA 200`,
                 opt_espp_unlock: "ESPP Next Tax Unlock Date",
                 tax_opt_title: "Hacienda Savings Tax Bracket Optimizer",
                 tax_opt_desc: "Spanish savings income (capital gains) tax is progressive. Keep your gains within lower brackets to optimize tax efficiency.",
@@ -1143,7 +1131,7 @@
                 risk_card_desc: "Holding a high percentage of your liquid wealth in a single company stock increases your downside risk. Track your exposure level:",
                 risk_net_worth_label: "Enter Estimated Total Liquid Net Worth (EUR):",
                 peer_chart_title: "How my stock compares to similar companies",
-                peer_chart_desc: "Compares the percentage return of Dynatrace (DT) vs. Datadog (DDOG) and Elastic (ESTC) since your first transaction date. All lines start at 0% on day one.",
+                peer_chart_desc: `Compares the percentage return of ${mainTicker} vs. ${peerTickers.join(', ')} since your first transaction date. All lines start at 0% on day one.`,
                 breakeven_card_title: "The price I'd need to sell at to not lose money",
                 breakeven_card_desc: "Calculate the exact USD price required to sell all remaining shares without losing money, factoring in purchase costs, dollar devaluation, and past realized losses.",
                 be_stats_title: "Real-Time Breakeven Calculator",
@@ -1292,7 +1280,7 @@
                 intel_competitors_desc: "Realice el seguimiento y compare precios en tiempo real, múltiplos de valoración y tendencias de competidores clave:",
                 intel_tools_title: "Comparativas de Mercado",
                 intel_tools_desc: "Compare gráficos y métricas de valoración de forma paralela con sus pares:",
-                intel_peer_analysis: "Análisis de Valoración de Pares de DT",
+                intel_peer_analysis: `Análisis de Valoración de Pares de ${mainTicker}`,
                 intel_interactive_chart: "Gráfico de Rendimiento Interactivo",
                 intel_btn_analyze: "📊 Analizar ➔",
                 intel_btn_compare: "📈 Comparar ➔",
@@ -1315,8 +1303,7 @@
                 generator_desc: "Seleccione una métrica clave para generar la configuración recomendada de su alerta:",
                 generator_label_select: "Seleccione Tipo de Alerta:",
                 opt_fx: "Tipo de Cambio USD/EUR",
-                opt_dt_sma: "Precio Dynatrace (DT) vs SMA 200",
-                opt_ddog_earnings: "Resultados Financieros de Datadog (DDOG)",
+                opt_dt_sma: `Precio ${mainTicker} vs SMA 200`,
                 opt_espp_unlock: "Próxima Fecha de Desbloqueo de ESPP",
                 tax_opt_title: "Optimizador de Tramos de IRPF del Ahorro (Hacienda)",
                 tax_opt_desc: "La tributación sobre las ganancias patrimoniales (base imponible del ahorro) en España es progresiva. Mantenga sus plusvalías en tramos más bajos para optimizar su factura fiscal.",
@@ -1324,7 +1311,7 @@
                 risk_card_desc: "Mantener un porcentaje elevado de su patrimonio líquido en acciones de una sola empresa aumenta su exposición a caídas. Siga su nivel de exposición:",
                 risk_net_worth_label: "Introduzca su Patrimonio Líquido Estimado Total (EUR):",
                 peer_chart_title: "Cómo se compara mi acción con empresas similares",
-                peer_chart_desc: "Compara el rendimiento porcentual de Dynatrace (DT) frente a Datadog (DDOG) y Elastic (ESTC) desde la fecha de su primera transacción. Todas las líneas comienzan en el 0% el primer día.",
+                peer_chart_desc: `Compara el rendimiento porcentual de ${mainTicker} frente a ${peerTickers.join(', ')} desde la fecha de su primera transacción. Todas las líneas comienzan en el 0% el primer día.`,
                 breakeven_card_title: "El precio al que tendría que vender para no perder dinero",
                 breakeven_card_desc: "Calcule el precio exacto en USD necesario para vender todas sus acciones restantes sin perder dinero, teniendo en cuenta los costes de compra, la devaluación del dólar y las pérdidas realizadas acumuladas del pasado.",
                 be_stats_title: "Calculadora de Punto de Equilibrio en Tiempo Real",
@@ -1375,6 +1362,7 @@
             renderSavingsIncome();
             renderScenarios();
             renderEsppTable();
+            renderPeerLinks();
             updateAlertGenerator();
             
             // Re-translate charts datasets and options
@@ -2012,17 +2000,18 @@
                     <p style="margin: 0 0 8px 0; font-size: 0.85rem;">${rec}</p>
                     <p style="margin: 0; color: var(--text-secondary); font-size: 0.8rem;">💡 <strong>${isEs ? 'Cómo configurarlo' : 'How to set it'}:</strong> ${action}</p>
                 `;
-            } else if (val === 'ddog_earnings') {
-                const title = isEs ? "Noticias de Datadog (DDOG)" : "Datadog (DDOG) News & Earnings";
-                const desc = isEs ? 
-                    "Datadog es el principal competidor en observabilidad. Sus resultados financieros mueven fuertemente el sector e influyen en Dynatrace (DT)." : 
-                    "Datadog is the leading peer in observability. Their financial results move the sector and strongly influence Dynatrace (DT).";
-                const rec = isEs ? 
-                    "<strong>Alerta recomendada:</strong> Configurar Alertas de Google para <code>Datadog earnings</code> o <code>DDOG stock</code>." : 
-                    "<strong>Recommended Alert:</strong> Create Google Alerts for <code>Datadog earnings</code> or <code>DDOG stock</code>.";
-                const action = isEs ? 
-                    "Visite <a href='https://www.google.com/alerts' target='_blank' style='color: var(--accent-green); text-decoration: underline;'>Google Alerts</a>, añada el término <code>Datadog earnings</code> y elija recibir avisos inmediatos." : 
-                    "Go to <a href='https://www.google.com/alerts' target='_blank' style='color: var(--accent-green); text-decoration: underline;'>Google Alerts</a>, type <code>Datadog earnings</code>, and choose immediate email notifications.";
+            } else if (val === 'peer_earnings') {
+                const peer = peerTickers.length > 0 ? peerTickers[0] : 'peer';
+                const title = isEs ? `Noticias y Resultados de ${peer}` : `${peer} News & Earnings`;
+                const desc = isEs ?
+                    `${peer} es un competidor clave. Sus resultados financieros mueven el sector e influyen en ${mainTicker}.` :
+                    `${peer} is a key peer. Their financial results move the sector and influence ${mainTicker}.`;
+                const rec = isEs ?
+                    `<strong>Alerta recomendada:</strong> Configurar Alertas de Google para <code>${peer} earnings</code> o <code>${peer} stock</code>.` :
+                    `<strong>Recommended Alert:</strong> Create Google Alerts for <code>${peer} earnings</code> or <code>${peer} stock</code>.`;
+                const action = isEs ?
+                    `Visite <a href='https://www.google.com/alerts' target='_blank' style='color: var(--accent-green); text-decoration: underline;'>Google Alerts</a>, añada el término <code>${peer} earnings</code> y elija recibir avisos inmediatos.` :
+                    `Go to <a href='https://www.google.com/alerts' target='_blank' style='color: var(--accent-green); text-decoration: underline;'>Google Alerts</a>, type <code>${peer} earnings</code>, and choose immediate email notifications.`;
                 
                 html = `
                     <h4 style="margin: 0 0 6px 0; color: var(--accent-blue);">${title}</h4>
@@ -2129,6 +2118,29 @@
                 .replace('{atrisk}', `<strong class="sensitive">€${atRisk.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>`);
         }
 
+        // --- Peer links in Intel Hub ---
+        function renderPeerLinks() {
+            const container = document.getElementById('peer-links-list');
+            if (!container) return;
+            const isEs = currentLang === 'es';
+            const label = isEs ? '👁️ Ver en vivo ➔' : '👁️ View Live ➔';
+            const linkStyle = 'color: var(--text-primary); text-decoration: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-primary); border-radius: 6px; border: 1.5px solid var(--border); transition: border-color 0.2s;';
+            container.innerHTML = peerTickers.map(t =>
+                `<a href="https://finance.yahoo.com/quote/${t}" target="_blank" style="${linkStyle}">
+                    <span><strong>${t}</strong></span>
+                    <span style="color: var(--accent-blue);">${label}</span>
+                </a>`
+            ).join('');
+
+            // Update the peer earnings dropdown label to reflect the first peer
+            const opt = document.getElementById('opt-peer-earnings');
+            if (opt && peerTickers.length > 0) {
+                opt.textContent = isEs
+                    ? `Resultados de ${peerTickers[0]}`
+                    : `${peerTickers[0]} Earnings News`;
+            }
+        }
+
         // --- Dividends & interest income table ---
         function renderSavingsIncome() {
             const el = document.getElementById('savings-income-content');
@@ -2152,6 +2164,7 @@
         renderSavingsIncome();
         renderScenarios();
         renderEsppTable();
+        renderPeerLinks();
         updateAlertGenerator();
         
         // Dynamic colors & scoreboard values
@@ -2550,13 +2563,24 @@
         
         // --- Comparative Peer Group Performance Chart ---
         const peerData = __PEER_DATA__;
+        const PEER_COLORS = ['#10b981', '#ef4444', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899'];
+        const peerDatasets = peerTickers.map((t, i) => ({
+            label: t,
+            data: (peerData[t] || []).map(e => ({ x: e.date, y: e.pct })),
+            borderColor: PEER_COLORS[i % PEER_COLORS.length],
+            borderWidth: 2,
+            backgroundColor: 'transparent',
+            fill: false,
+            pointRadius: 1,
+            tension: 0.1
+        }));
         charts.peers = new Chart(document.getElementById('peerChart').getContext('2d'), {
             type: 'line',
             data: {
                 datasets: [
                     {
-                        label: 'Dynatrace (DT)',
-                        data: (peerData.DT || []).map(e => ({ x: e.date, y: e.pct })),
+                        label: mainTicker,
+                        data: (peerData[mainTicker] || []).map(e => ({ x: e.date, y: e.pct })),
                         borderColor: '#3b82f6',
                         borderWidth: 2.5,
                         backgroundColor: 'rgba(59, 130, 246, 0.05)',
@@ -2564,26 +2588,7 @@
                         pointRadius: 1,
                         tension: 0.1
                     },
-                    {
-                        label: 'Datadog (DDOG)',
-                        data: (peerData.DDOG || []).map(e => ({ x: e.date, y: e.pct })),
-                        borderColor: '#10b981',
-                        borderWidth: 2,
-                        backgroundColor: 'transparent',
-                        fill: false,
-                        pointRadius: 1,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'Elastic (ESTC)',
-                        data: (peerData.ESTC || []).map(e => ({ x: e.date, y: e.pct })),
-                        borderColor: '#ef4444',
-                        borderWidth: 2,
-                        backgroundColor: 'transparent',
-                        fill: false,
-                        pointRadius: 1,
-                        tension: 0.1
-                    }
+                    ...peerDatasets
                 ]
             },
             options: {

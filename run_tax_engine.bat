@@ -109,12 +109,15 @@ if "%choice%"=="5" (
 if "%choice%"=="6" (
     echo ------------------------------------------
     echo Generate Charts ^& Tax Dashboard
+    echo (Ticker auto-detected. Peers: edit input\peers.json or enter below.)
     echo ------------------------------------------
     set CHART_ARGS=
-    set /p chart_ticker="Enter stock ticker (or press Enter for auto-detect): "
-    if defined chart_ticker set CHART_ARGS=--ticker %chart_ticker%
     set /p chart_price="Enter current stock price in USD (or press Enter for live): "
-    if defined chart_price set CHART_ARGS=%CHART_ARGS% --current-price %chart_price%
+    if defined chart_price set CHART_ARGS=--current-price %chart_price%
+    if not exist "input\peers.json" (
+        set /p peer_input="Peer tickers, space-separated (or Enter for defaults DDOG ESTC): "
+        if defined peer_input set CHART_ARGS=%CHART_ARGS% --peers %peer_input%
+    )
     "%PYTHON_BIN%" generate_charts.py %CHART_ARGS%
     pause
     goto menu

@@ -113,12 +113,18 @@ while true; do
         6)
             echo "------------------------------------------"
             echo "Generate Charts & Tax Dashboard"
-            echo "(Stock ticker is auto-detected from your data.)"
+            echo "(Ticker auto-detected. Peers: edit input/peers.json or enter below.)"
             echo "------------------------------------------"
             CHART_ARGS=""
             read -p "Enter current stock price in USD (or press Enter for live): " chart_price
             if [ -n "$chart_price" ]; then
                 CHART_ARGS="--current-price $chart_price"
+            fi
+            if [ ! -f "input/peers.json" ]; then
+                read -p "Peer tickers to compare, space-separated (or Enter for defaults DDOG ESTC): " peer_input
+                if [ -n "$peer_input" ]; then
+                    CHART_ARGS="$CHART_ARGS --peers $peer_input"
+                fi
             fi
             "$PYTHON_BIN" generate_charts.py $CHART_ARGS
             echo ""
