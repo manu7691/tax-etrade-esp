@@ -34,6 +34,7 @@ Opciones:
 | *(ninguno)* | Detecta todo automáticamente y obtiene el precio en vivo. |
 | `--current-price 45.50` | Usa un precio fijo en USD en vez del precio en vivo. |
 | `--include-espp` / `--skip-espp` | Fuerza incluir o excluir el análisis de ESPP (omite la pregunta). |
+| `--peers DDOG MSFT NVDA` | Establece los tickers de pares para el gráfico comparativo (separados por espacio). |
 
 Notas:
 
@@ -43,6 +44,25 @@ Notas:
   tienes datos de ESPP, ese paso se omite automáticamente.
 - La primera ejecución necesita internet (para obtener el precio en vivo y los precios
   históricos); después, la caché de tipos del BCE funciona sin conexión.
+
+### Configurar los tickers de pares
+
+El gráfico "Comparativa con empresas similares" y los enlaces del Hub de Inteligencia
+muestran los tickers que configures. Orden de prioridad (el mayor gana):
+
+1. Flag `--peers` en la línea de comandos (anulación puntual).
+2. **`input/peers.json`** — configuración persistente, se lee en cada ejecución.
+3. Valores predeterminados: `["DDOG", "ESTC"]`.
+
+Para establecer tus propios pares de forma permanente, crea `input/peers.json`:
+
+```json
+["DDOG", "MSFT", "NVDA"]
+```
+
+Si el archivo no existe y usas el menú del lanzador, se te preguntará una vez antes de
+generar el panel. Puedes añadir tantos tickers como quieras — cada uno aparecerá como
+una línea en el gráfico y como un enlace de Yahoo Finance en el Hub de Inteligencia.
 
 ---
 

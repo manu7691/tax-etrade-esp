@@ -33,6 +33,7 @@ Options:
 | *(none)* | Auto-detects everything and fetches the live price. |
 | `--current-price 45.50` | Use a fixed USD price instead of the live one. |
 | `--include-espp` / `--skip-espp` | Force-include or exclude ESPP analysis (skips the prompt). |
+| `--peers DDOG MSFT NVDA` | Override the peer tickers used in the comparison chart (space-separated). |
 
 Notes:
 
@@ -42,6 +43,25 @@ Notes:
   have no ESPP data, that step is skipped automatically.
 - The first run needs internet (to fetch the live price and historical prices); after
   that the ECB rate cache works offline.
+
+### Configuring peer tickers
+
+The "Peer Comparison" chart and the Intel Hub links show whatever tickers you configure.
+Priority order (highest wins):
+
+1. `--peers` CLI flag (one-off override).
+2. **`input/peers.json`** — persistent config, read on every run.
+3. Built-in fallback: `["DDOG", "ESTC"]`.
+
+To set your own peers permanently, create `input/peers.json`:
+
+```json
+["DDOG", "MSFT", "NVDA"]
+```
+
+If the file is absent and you run via the menu launcher, it will ask you once before
+generating. You can add as many tickers as you like — each one appears as a line in the
+chart and as a Yahoo Finance link in the Intel Hub.
 
 ---
 
