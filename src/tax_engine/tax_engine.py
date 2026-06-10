@@ -159,10 +159,12 @@ class TaxEngine:
                 )
             )
 
-        # Deduct any fees (Commission, SEC, Brokerage) from the total capital gain
+        # Deduct any fees (Commission, SEC, Brokerage) from the total capital gain.
+        # resolved_fx_rate is EUR per unit of the native currency, so fees convert
+        # to EUR the same way the price does — by multiplying, not dividing.
         fees_eur = Decimal("0")
         if event.fees_usd > 0:
-            fees_eur = (event.fees_usd / event.resolved_fx_rate).quantize(
+            fees_eur = (event.fees_usd * event.resolved_fx_rate).quantize(
                 Decimal("0.0001"), ROUND_HALF_UP
             )
             total_realized_gain_loss -= fees_eur
@@ -286,7 +288,7 @@ class TaxEngine:
             self.yearly_summaries[year].total_losses += result.realized_gain_loss
 
         if event.fees_usd > 0 and event.resolved_fx_rate:
-            fees_eur = (event.fees_usd / event.resolved_fx_rate).quantize(Decimal("0.0001"), ROUND_HALF_UP)
+            fees_eur = (event.fees_usd * event.resolved_fx_rate).quantize(Decimal("0.0001"), ROUND_HALF_UP)
             self.yearly_summaries[year].total_fees_eur += fees_eur
 
         self.processed_events.append(result)

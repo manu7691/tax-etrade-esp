@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Transaction fees were converted to EUR by **dividing** by the FX rate instead of
+  multiplying (the price uses multiplication). Fees are now deducted at the same
+  rate as the price. Small magnitude (fees are a few dollars) but a correctness fix.
 - Prevent wash-sale over-blocking across overlapping loss sales.
 - Documentation: corrected the orders input path (`input/orders/orders.xlsx`)
   and added the required `input/espp/BenefitHistory.xlsx` to the input diagrams.
