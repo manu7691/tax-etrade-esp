@@ -34,6 +34,14 @@ class TaxEngine:
     Spanish tax law (IRPF) for calculating capital gains on stocks.
     """
 
+    @staticmethod
+    def format_shares(val: Decimal) -> str:
+        """Format decimal share counts to strip trailing zeros and show up to 6 decimals."""
+        s = f"{val:,.6f}"
+        if "." in s:
+            s = s.rstrip("0").rstrip(".")
+        return s
+
     def __init__(self) -> None:
         self.state = TaxEngineState()
         self.processed_events: list[ProcessedEvent] = []
@@ -542,7 +550,7 @@ class TaxEngine:
         for pe in self.processed_events:
             e = pe.event
             shares_sign = "+" if e.event_type != EventType.SELL else "-"
-            shares_str = f"{shares_sign}{e.shares:,.0f}"
+            shares_str = f"{shares_sign}{TaxEngine.format_shares(e.shares)}"
             gain_str = f"€{pe.realized_gain_loss:,.4f}" if pe.realized_gain_loss != 0 else ""
 
             wash_sale_info = ""
@@ -564,7 +572,7 @@ class TaxEngine:
             if pe.fifo_matches:
                 for match in pe.fifo_matches:
                     print(
-                        f"   └─ FIFO Match: {match.shares:,.0f} shares acq on {match.acquisition_date.isoformat()} "
+                        f"   └─ FIFO Match: {TaxEngine.format_shares(match.shares)} shares acq on {match.acquisition_date.isoformat()} "
                         f"cost €{match.acquisition_price_eur:,.4f} -> Gain/Loss: €{match.realized_gain_loss:,.4f}"
                     )
 
@@ -1310,7 +1318,7 @@ class TaxEngine:
         for pe in self.processed_events:
             e = pe.event
             shares_sign = "+" if e.event_type != EventType.SELL else "-"
-            shares_str = f"{shares_sign}{e.shares:,.0f}"
+            shares_str = f"{shares_sign}{TaxEngine.format_shares(e.shares)}"
 
             # Translate EventType for Spanish
             event_type_str = e.event_type.value
@@ -1359,7 +1367,7 @@ class TaxEngine:
             html.append(f"<td>{e.resolved_fx_rate:.4f}</td>")
             html.append(f"<td>€{e.price_eur:,.4f}</td>")
             html.append(f"<td>€{e.total_value_eur:,.2f}</td>")
-            html.append(f"<td>{pe.total_shares_after:,.0f}</td>")
+            html.append(f"<td>{TaxEngine.format_shares(pe.total_shares_after)}</td>")
             html.append(f"<td>€{pe.avg_cost_eur_after:,.4f}</td>")
             html.append(f"<td>{gl_str}{wash_sale_note}</td>")
             html.append("</tr>")
@@ -1372,10 +1380,10 @@ class TaxEngine:
                     # Span Type + Broker + Shares (the table gained a Broker column).
                     html.append(f"<td colspan='3' style='text-align:right;'>{match_label}</td>")
                     if not is_es:
-                        match_text = f"Matched {match.shares:,.0f} shares from acquisition on {match.acquisition_date} at €{match.acquisition_price_eur:,.4f}"
+                        match_text = f"Matched {TaxEngine.format_shares(match.shares)} shares from acquisition on {match.acquisition_date} at €{match.acquisition_price_eur:,.4f}"
                     else:
                         acq_date_str = match.acquisition_date.strftime("%d/%m/%Y")
-                        match_text = f"Se cruzaron {match.shares:,.0f} acciones de la adquisición del {acq_date_str} a €{match.acquisition_price_eur:,.4f}"
+                        match_text = f"Se cruzaron {TaxEngine.format_shares(match.shares)} acciones de la adquisición del {acq_date_str} a €{match.acquisition_price_eur:,.4f}"
                     html.append(f"<td colspan='6'>{match_text}</td>")
                     html.append(f"<td>€{match.realized_gain_loss:,.2f}</td>")
                     html.append("</tr>")
@@ -1395,22 +1403,22 @@ class TaxEngine:
             sale_header = f"Sale on {event_date_str}" if not is_es else f"Venta el {event_date_str}"
             html.append(f"<h3>{i}. {sale_header}</h3>")
             html.append("<ul>")
-            sold_text = f"Sold: {e.shares:,.0f} shares @ €{e.price_eur:,.4f}" if not is_es else f"Vendido: {e.shares:,.0f} acciones @ €{e.price_eur:,.4f}"
+            sold_text = f"Sold: {TaxEngine.format_shares(e.shares)} shares @ €{e.price_eur:,.4f}" if not is_es else f"Vendido: {TaxEngine.format_shares(e.shares)} acciones @ €{e.price_eur:,.4f}"
             html.append(f"<li><strong>{sold_text}</strong></li>")
             matches_header = "FIFO Lot Matches" if not is_es else "Cruces de Lotes FIFO"
             html.append(f"<li><strong>{matches_header}</strong>:</li>")
             html.append("<ul>")
             for match in pe.fifo_matches:
                 if not is_es:
-                    match_desc = f"Matched {match.shares:,.0f} shares acquired on {match.acquisition_date} @ €{match.acquisition_price_eur:,.4f}. "
+                    match_desc = f"Matched {TaxEngine.format_shares(match.shares)} shares acquired on {match.acquisition_date} @ €{match.acquisition_price_eur:,.4f}. "
                     gl_label = "Gain/Loss"
                 else:
                     acq_date_str = match.acquisition_date.strftime("%d/%m/%Y")
-                    match_desc = f"Cruza {match.shares:,.0f} acciones adquiridas el {acq_date_str} @ €{match.acquisition_price_eur:,.4f}. "
+                    match_desc = f"Cruza {TaxEngine.format_shares(match.shares)} acciones adquiridas el {acq_date_str} @ €{match.acquisition_price_eur:,.4f}. "
                     gl_label = "Ganancia/Pérdida"
                 html.append(
                     f"<li>{match_desc}"
-                    f"{gl_label}: <code>({e.price_eur:,.4f} - {match.acquisition_price_eur:,.4f}) * {match.shares:,.0f} = €{match.realized_gain_loss:,.2f}</code></li>"
+                    f"{gl_label}: <code>({e.price_eur:,.4f} - {match.acquisition_price_eur:,.4f}) * {TaxEngine.format_shares(match.shares)} = €{match.realized_gain_loss:,.2f}</code></li>"
                 )
             html.append("</ul>")
 

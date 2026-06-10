@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent wash-sale over-blocking across overlapping loss sales.
 - Documentation: corrected the orders input path (`input/orders/orders.xlsx`)
   and added the required `input/espp/BenefitHistory.xlsx` to the input diagrams.
+- Fixed formatting of stock share counts to correctly display fractional shares (up to 6 decimal places) in CLI output and HTML reports instead of rounding/truncating them to 0.
 
 ## [0.1.0] - 2026-02-05
 

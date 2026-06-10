@@ -227,6 +227,16 @@ class TestTaxEngineEdgeCases:
         assert results == []
         assert engine.state.total_shares == Decimal("0")
 
+    def test_format_shares(self):
+        """Test formatting of whole and fractional shares."""
+        assert TaxEngine.format_shares(Decimal("100")) == "100"
+        assert TaxEngine.format_shares(Decimal("0.0227")) == "0.0227"
+        assert TaxEngine.format_shares(Decimal("1000.5")) == "1,000.5"
+        assert TaxEngine.format_shares(Decimal("0")) == "0"
+        assert TaxEngine.format_shares(Decimal("123.456789")) == "123.456789"
+        assert TaxEngine.format_shares(Decimal("123.4567891")) == "123.456789"
+
+
 
 class TestWashSaleRefinement:
     """Tests for the refined wash sale rule (only remaining shares trigger blocking)."""
